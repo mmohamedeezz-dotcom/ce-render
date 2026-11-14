@@ -13,6 +13,35 @@
   }
   function cr(a, b) { return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
 
+  // caption lines: 2-3 words each, sizes balanced, never a lonely word at the end
+  function split(w, hook) {
+    var maxW = hook ? 2 : 3, maxC = hook ? 12 : 17, n = w.length, out = [];
+    var len = function (t) { return t.replace(/[*\u064B-\u0652]/g, '').length; };
+    for (var k = Math.ceil(n / maxW); k <= n; k++) {
+      out = []; var base = Math.floor(n / k), extra = n % k, p = 0, ok = true;
+      for (var q = 0; q < k; q++) {
+        var sz = base + (q < extra ? 1 : 0), part = [], c = -1;
+        for (var x = p; x < p + sz; x++) { part.push({ t: w[x], k: x }); c += len(w[x]) + 1; }
+        p += sz; out.push(part); if (c > maxC && sz > 1) ok = false;
+      }
+      if (ok) break;
+    }
+    return out;
+  }
+  function seed(str) { var h = 7; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
+  function imgs() { return [].slice.call(document.querySelectorAll('.scene[data-img], .k-photo[data-img]')); }
+  function imgUrl(e) {
+    var p = e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
+    var sq = !e.classList.contains('scene');
+    return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=1080&height=' + (sq ? 1080 : 2048) + '&model=flux&nologo=true&seed=' + seed(e.dataset.img);
+  }
+  function setImg(i, uri) {
+    var e = imgs()[i]; if (!e) return; var sc = e.classList.contains('scene'), t = sc ? e.querySelector('.k-bg') : e;
+    if (uri && i < 4) { t.style.backgroundImage = 'url("' + uri + '")'; e.dataset.imgOk = '1'; return; }
+    if (sc) { if (t) t.remove(); e.classList.remove('t-photo'); e.classList.add('t-dark'); } else e.style.display = 'none';
+    e.dataset.imgOk = '0';
+  }
+
   function build() {
     var root = document.documentElement;
     if (root.dataset.ceBuilt) return; root.dataset.ceBuilt = '1';
@@ -27,26 +56,22 @@
     if (La != null && Lb != null && cr(La, Lb) < 2.4) document.body.classList.add('lowc');
     if (Lb != null && Lp != null && cr(Lb, Lp) < 2.6) document.body.classList.add('lowb');
     S.forEach(function (s, i) {
-      if (!/\bt-(light|brand|dark)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
+      if (s.dataset.img && !s.querySelector('.k-bg')) { var bg = document.createElement('div'); bg.className = 'k-bg'; s.insertBefore(bg, s.firstChild); s.classList.remove('t-light', 't-brand', 't-dark'); s.classList.add('t-photo'); }
+      if (!/\bt-(light|brand|dark|photo)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
       if (i && !s.dataset.tr) s.dataset.tr = TR[(i - 1) % 3];
       if (brand && !s.querySelector('.k-logo')) { var l = document.createElement('div'); l.className = 'k-logo'; l.textContent = brand; s.insertBefore(l, s.firstChild); }
       var w = toks(s);
       // caption: every spoken word on screen, in short chunks, each word landing on its own time
       if (w.length && s.dataset.cap !== 'off' && !s.querySelector('.k-cap')) {
         var cap = document.createElement('div'); cap.className = 'k-cap';
-        var hook = s.classList.contains('hook'), maxW = hook ? 3 : 4, maxC = hook ? 13 : 20, ch = null, n = 0, c = 0;
-        w.forEach(function (t, k) {
-          var clean = t.replace(/\*/g, '');
-          if (!ch || n >= maxW || c + clean.length > maxC) { ch = document.createElement('div'); ch.className = 'k-chunk'; cap.appendChild(ch); n = 0; c = 0; }
-          var sp = document.createElement('span'); sp.className = 'k-w' + (t.indexOf('*') >= 0 ? ' hl' : ''); var shown = clean.replace(/[،,.]+$/, ''); sp.textContent = BT.indexOf(shown) >= 0 ? shown : shown.replace(/[\u064B-\u0650\u0652\u0670]/g, ''); sp.dataset.w = k; ch.appendChild(sp);
-          n++; c += clean.length + 1;
-          if (/[،.؟!…:,?]$/.test(clean) && n >= 2) n = 99;
+        var hook = s.classList.contains('hook');
+        split(w, hook).forEach(function (part) {
+          var ch = document.createElement('div'); ch.className = 'k-chunk'; cap.appendChild(ch);
+          part.forEach(function (o) {
+            var clean = o.t.replace(/\*/g, ''), sp = document.createElement('span'); sp.className = 'k-w' + (o.t.indexOf('*') >= 0 ? ' hl' : '');
+            var shown = clean.replace(/[،,.]+$/, ''); sp.textContent = BT.indexOf(shown) >= 0 ? shown : shown.replace(/[\u064B-\u0650\u0652\u0670]/g, ''); sp.dataset.w = o.k; ch.appendChild(sp);
+          });
         });
-        var cs = cap.children, L = cs.length;
-        if (L > 1 && cs[L - 1].children.length === 1) {
-          if (cs[L - 2].children.length > 2) cs[L - 1].insertBefore(cs[L - 2].lastChild, cs[L - 1].firstChild);
-          else { cs[L - 2].appendChild(cs[L - 1].firstChild); cap.removeChild(cs[L - 1]); }
-        }
         s.appendChild(cap);
       }
       [].forEach.call(s.querySelectorAll('.k-stage'), function (st) { if (st.querySelector(':scope > .k-fit')) return; var f = document.createElement('div'); f.className = 'k-fit'; while (st.firstChild) f.appendChild(st.firstChild); st.appendChild(f); });
@@ -96,8 +121,9 @@
       if (Math.abs(z - 1) > 0.005) f.style.zoom = z;
     });
     [].forEach.call(document.querySelectorAll('.k-chunk'), function (c) {
-      var p = c.parentNode, wide = 0; [].forEach.call(c.children, function (w) { wide = Math.max(wide, w.offsetWidth); });
-      var z = Math.min(1, p.clientWidth / Math.max(1, wide), p.clientHeight / Math.max(1, c.scrollHeight));
+      var p = c.parentNode, fs = parseFloat(getComputedStyle(c).fontSize), tot = -0.26 * fs;
+      [].forEach.call(c.children, function (w) { tot += w.offsetWidth + 0.26 * fs; });
+      var z = Math.min(1, p.clientWidth / Math.max(1, tot));
       if (z < 0.995) c.style.fontSize = (z * 100) + '%';
     });
     punch();
@@ -142,6 +168,7 @@
 
   window.ceApply = function (T) { build(); apply(T || estimate()); };
   window.ceFit = fit; window.ceQA = qa;
-  function boot() { if (window.CE_RENDER) return; window.ceApply(); (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit); }
+  window.ceImages = function () { return imgs().map(imgUrl); }; window.ceSetImage = setImg;
+  function boot() { if (window.CE_RENDER) return; window.ceApply(); imgs().forEach(function (e, i) { setImg(i, imgUrl(e)); }); (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

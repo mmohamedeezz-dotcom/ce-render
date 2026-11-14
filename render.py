@@ -8,7 +8,7 @@ HTML contract (reel): <section class="scene" data-vo="spoken line" [data-sfx="en
 The renderer measures each line's real speech, then sets on every scene --s (start, s) and --d (duration, s),
 and on every [data-at] element --at (offset inside the scene, s). Base CSS below does the rest.
 """
-import base64, json, os, re, subprocess, sys, urllib.request
+import base64, hashlib, json, os, re, subprocess, sys, time, urllib.parse, urllib.request
 from playwright.sync_api import sync_playwright
 
 spec = json.load(open(sys.argv[1], encoding='utf-8'))
@@ -37,6 +37,45 @@ def post(path, body):
         return urllib.request.urlopen(req, timeout=180).read()
     except urllib.error.HTTPError as e:
         raise RuntimeError('HTTP %s: %s' % (e.code, e.read().decode('utf8','replace')[:300]))
+
+CACHE = os.environ.get('CE_CACHE', 'cache'); os.makedirs(CACHE, exist_ok=True)
+ASSETS = {'images_wanted': 0, 'images_ok': 0, 'music': ''}
+
+def fetch_image(url):
+    """a generated photo for a scene (free service, slow and rate limited); cached so a prompt is paid for once."""
+    f = os.path.join(CACHE, hashlib.sha1(url.encode()).hexdigest() + '.jpg')
+    if os.path.exists(f) and os.path.getsize(f) > 20000: return f
+    if os.environ.get('CE_MOCK'):
+        ff('-f', 'lavfi', '-i', 'gradients=s=1080x2048:c0=0x5b3a1e:c1=0xd9a441:x0=0:y0=0:x1=1080:y1=2048', '-frames:v', '1', '-q:v', '2', f); return f
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'ce-render/1.0'})
+            data = urllib.request.urlopen(req, timeout=120).read()
+            if data[:2] == b'\xff\xd8' and len(data) > 20000:
+                open(f, 'wb').write(data); return f
+            print(f'image: not a usable picture ({len(data)} bytes)')
+        except Exception as e:
+            print('image failed:', str(e)[:120])
+        time.sleep(16)
+    return None
+
+def brand_music(brand, prompt, dest):
+    """one instrumental bed per brand, generated once and reused on every reel of that brand."""
+    f = os.path.join(CACHE, 'music_' + hashlib.sha1(brand.encode()).hexdigest()[:16] + '.mp3')
+    if not (os.path.exists(f) and os.path.getsize(f) > 50000):
+        if not KEY: return None
+        p = (prompt or 'warm modern instrumental background music for a short social ad, light drums, soft bass, positive, steady groove') + '. Instrumental only, no vocals, no speech.'
+        for body in ({'prompt': p, 'music_length_ms': 45000, 'force_instrumental': True}, {'prompt': p, 'music_length_ms': 45000}):
+            try:
+                data = post('/v1/music', body)
+                if len(data) > 50000: open(f, 'wb').write(data); print('music: generated new bed for this brand'); break
+            except Exception as e:
+                print('music failed:', str(e)[:200])
+        else:
+            return None
+    else:
+        print('music: reused the saved bed for this brand')
+    return f
 
 def speak(text, dest):
     """returns (duration, [word start times]) using the real voice; None if unavailable."""
@@ -213,6 +252,15 @@ with sync_playwright() as p:
 
     # real timings into the DOM (captions, entrances, scene windows), fit every visual to its zone, then reload clean
     pg.evaluate('T => window.ceApply(T)', timing)
+    urls = pg.evaluate('window.ceImages()')
+    ASSETS['images_wanted'] = len(urls)
+    for k, u in enumerate(urls):
+        f = fetch_image(u) if k < 4 else None
+        if f:
+            pg.evaluate('([i, d]) => window.ceSetImage(i, d)', [k, 'data:image/jpeg;base64,' + base64.b64encode(open(f, 'rb').read()).decode()]); ASSETS['images_ok'] += 1
+        else:
+            pg.evaluate('i => window.ceSetImage(i, null)', k)
+    BRAND = pg.evaluate("document.body.dataset.brand || ''"); MUSIC_PROMPT = pg.evaluate("document.body.dataset.music || ''")
     pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
     pg.evaluate("window.ceFit(); ['ce-kit-js','ce-kit-flag'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); })")
     final_html = pg.evaluate('"<!DOCTYPE html>" + document.documentElement.outerHTML')
@@ -236,7 +284,30 @@ def mix(sel, dest, norm=''):
     ff(*ins, '-filter_complex', ';'.join(flt), '-map', '[m]', dest); return True
 
 final = f'{out}/{code}.mp4'
-if mix(tracks, f'{out}/_mix.wav', 'loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100,'):
+music = brand_music(BRAND or code, MUSIC_PROMPT, f'{out}/_music.mp3') if (reel and real) else None
+ASSETS['music'] = 'yes' if music else 'no'
+
+def final_mix(dest):
+    """voice on top, effects under it, the brand's music lowest and ducked whenever someone speaks."""
+    if not tracks: return False
+    ins, flt = [], []
+    for k, (f, st, g, _) in enumerate(tracks):
+        ins += ['-i', f]; flt.append(f'[{k}:a]aresample=44100,volume={g},adelay={int(st*1000)}:all=1[a{k}]')
+    vo = [k for k, x in enumerate(tracks) if not x[3]]; fx = [k for k, x in enumerate(tracks) if x[3]]
+    buses = []
+    if vo:
+        flt.append(''.join(f'[a{k}]' for k in vo) + f'amix=inputs={len(vo)}:normalize=0:dropout_transition=0,apad,atrim=0:{total}' + (',asplit[vb][key]' if music else '[vb]')); buses.append('[vb]')
+    if fx:
+        flt.append(''.join(f'[a{k}]' for k in fx) + f'amix=inputs={len(fx)}:normalize=0:dropout_transition=0,apad,atrim=0:{total}[fb]'); buses.append('[fb]')
+    if music:
+        m = len(tracks); ins += ['-stream_loop', '-1', '-i', music]
+        flt.append(f'[{m}:a]aresample=44100,atrim=0:{total},volume=0.3,afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.4):.2f}:d=1.4[mu]')
+        if vo: flt.append('[mu][key]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=380[md]'); buses.append('[md]')
+        else: buses.append('[mu]')
+    flt.append(''.join(buses) + f'amix=inputs={len(buses)}:normalize=0:dropout_transition=0,apad,atrim=0:{total},loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100,alimiter=limit=0.95[m]')
+    ff(*ins, '-filter_complex', ';'.join(flt), '-map', '[m]', dest); return True
+
+if final_mix(f'{out}/_mix.wav'):
     ff('-i', silent, '-i', f'{out}/_mix.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', final)
     mix([x for x in tracks if x[3]], f'{out}/{code}_sfx.mp3')
 else:
@@ -262,6 +333,10 @@ def qa_report():
             add(-17 <= lu <= -12, f'مستوى الصوت {lu:.1f} LUFS')
         else:
             add(False, 'الفيديو من غير فويس أوفر')
+        if reel:
+            add(ASSETS['music'] == 'yes', 'موسيقى خلفية: ' + ('موجودة' if ASSETS['music'] == 'yes' else 'مش موجودة'))
+            w, k = ASSETS['images_wanted'], ASSETS['images_ok']
+            add(w == 0 or k == min(w, 4), f'الصور الحقيقية: {k} من {w} اتحمّلوا' if w else 'الصور الحقيقية: الريل ما طلبش صور')
         lay = LAYOUT or {}
         for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
             items = lay.get(key) or []
