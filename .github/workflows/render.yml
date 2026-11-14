@@ -40,10 +40,11 @@ jobs:
         run: |
           JOB=$(cat job.txt)
           git config user.name "ce-render" && git config user.email "ce-render@users.noreply.github.com"
-          git fetch origin media 2>/dev/null && git checkout media 2>/dev/null || git checkout --orphan media
-          git rm -rf --cached . >/dev/null 2>&1 || true
+          # one small branch per render: the CDN refuses repo versions over 50 MB, so renders must not pile up in one branch
+          git checkout -q --orphan m-$JOB
+          git rm -rfq --cached . >/dev/null 2>&1 || true
           mkdir -p v/$JOB && cp out/* v/$JOB/
-          git add -f v && git commit -qm "render $JOB" && git push -q origin media
+          git add -f v && git commit -qm "render $JOB" && git push -q origin m-$JOB
           echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
           echo "files=$(ls out | tr '\n' ',')" >> $GITHUB_OUTPUT
       - name: Callback
