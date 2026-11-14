@@ -9,7 +9,7 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,6 +30,11 @@ jobs:
           json.dump(p['spec'], open('spec.json', 'w', encoding='utf-8'), ensure_ascii=False)
           open('job.txt', 'w').write(''.join(c for c in p['job'] if c.isalnum()))
           PY
+      - uses: actions/cache@v4
+        with:
+          path: cache
+          key: ce-cache-${{ github.run_id }}
+          restore-keys: ce-cache-
       - name: Render
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
