@@ -7,7 +7,7 @@ HTML contract (reel): <section class="scene" data-vo="spoken line" [data-sfx="en
 The renderer measures each line's real speech, then sets on every scene --s (start, s) and --d (duration, s),
 and on every [data-at] element --at (offset inside the scene, s). Base CSS below does the rest.
 """
-import base64, json, os, re, subprocess, sys, urllib.request
+import base64, json, os, re, subprocess, sys, urllib.request, urllib.error
 from playwright.sync_api import sync_playwright
 
 spec = json.load(open(sys.argv[1], encoding='utf-8'))
@@ -16,7 +16,7 @@ code = ''.join(c for c in str(spec.get('code') or 'asset') if c.isalnum() or c i
 reel = spec.get('kind') == 'reel'
 W, H = 1080, (1920 if reel else 1350)
 fps = int(spec.get('fps') or 30)
-KEY = os.environ.get('ELEVENLABS_API_KEY', '')
+KEY = os.environ.get('ELEVENLABS_API_KEY', '').strip()
 voice = spec.get('voice_id') or os.environ.get('ELEVENLABS_VOICE_ID', '')
 GAP, TAIL, WORD = 0.18, 1.2, 0.36
 
@@ -46,7 +46,10 @@ def ff(*a):
 def post(path, body):
     req = urllib.request.Request('https://api.elevenlabs.io' + path, data=json.dumps(body).encode(),
                                  headers={'xi-api-key': KEY, 'Content-Type': 'application/json'})
-    return urllib.request.urlopen(req, timeout=180).read()
+    try:
+        return urllib.request.urlopen(req, timeout=180).read()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError('HTTP %s (key length %d): %s' % (e.code, len(KEY), e.read().decode('utf8', 'replace')[:300]))
 
 def speak(text, dest):
     """returns (duration, [word start times]) using the real voice; None if unavailable."""
