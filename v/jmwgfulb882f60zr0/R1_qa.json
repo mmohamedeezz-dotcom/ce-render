@@ -1,0 +1,45 @@
+{
+ "pass": false,
+ "checks": [
+  {
+   "ok": true,
+   "t": "أول فريم فيه صورة مش فاضي"
+  },
+  {
+   "ok": true,
+   "t": "أطول وقفة من غير حركة 0.0 ثانية"
+  },
+  {
+   "ok": true,
+   "t": "المدة 28.0 ثانية، 60 فريم في الثانية"
+  },
+  {
+   "ok": true,
+   "t": "تزامن الصوت مع الصورة: أقصى فرق 0.10 ثانية (موديل eleven_v3, one take, as delivered + pauses tightened)"
+  },
+  {
+   "ok": true,
+   "t": "مستوى الصوت -14.8 LUFS"
+  },
+  {
+   "ok": false,
+   "t": "عناصر خارجة بره الفريم: 2 (5: ساعةمن التحميص | 7: جكيس تجربة لكل عميل)"
+  },
+  {
+   "ok": true,
+   "t": "نص مقصوص جوه مكوّن: 0"
+  },
+  {
+   "ok": true,
+   "t": "الفيجوال داخل على الكابشن: 0"
+  }
+ ],
+ "voice": {
+  "mode": "one take",
+  "model": "eleven_v3",
+  "timing": "as delivered + pauses tightened",
+  "sync_max": 0.101,
+  "sync_mean": 0.044
+ },
+ "scenes": 10
+}
