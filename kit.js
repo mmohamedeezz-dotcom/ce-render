@@ -37,12 +37,15 @@
         w.forEach(function (t, k) {
           var clean = t.replace(/\*/g, '');
           if (!ch || n >= maxW || c + clean.length > maxC) { ch = document.createElement('div'); ch.className = 'k-chunk'; cap.appendChild(ch); n = 0; c = 0; }
-          var sp = document.createElement('span'); sp.className = 'k-w' + (t.indexOf('*') >= 0 ? ' hl' : ''); sp.textContent = clean; sp.dataset.w = k; ch.appendChild(sp);
+          var sp = document.createElement('span'); sp.className = 'k-w' + (t.indexOf('*') >= 0 ? ' hl' : ''); sp.textContent = clean.replace(/[،,.]+$/, ''); sp.dataset.w = k; ch.appendChild(sp);
           n++; c += clean.length + 1;
-          if (/[،.؟!…:,?]$/.test(clean)) n = 99;
+          if (/[،.؟!…:,?]$/.test(clean) && n >= 2) n = 99;
         });
         var cs = cap.children, L = cs.length;
-        if (L > 1 && cs[L - 1].children.length === 1 && cs[L - 2].children.length > 2) cs[L - 1].insertBefore(cs[L - 2].lastChild, cs[L - 1].firstChild);
+        if (L > 1 && cs[L - 1].children.length === 1) {
+          if (cs[L - 2].children.length > 2) cs[L - 1].insertBefore(cs[L - 2].lastChild, cs[L - 1].firstChild);
+          else { cs[L - 2].appendChild(cs[L - 1].firstChild); cap.removeChild(cs[L - 1]); }
+        }
         s.appendChild(cap);
       }
       [].forEach.call(s.querySelectorAll('.k-stage'), function (st) { if (st.querySelector(':scope > .k-fit')) return; var f = document.createElement('div'); f.className = 'k-fit'; while (st.firstChild) f.appendChild(st.firstChild); st.appendChild(f); });
@@ -57,9 +60,10 @@
     var S = scenes();
     S.forEach(function (s, i) {
       var m = T[i]; if (!m) return; var last = i === S.length - 1, dv = m.d + (last ? 0 : OV);
-      s.style.setProperty('--s', m.s + 's'); s.style.setProperty('--d', m.d + 's'); s.style.setProperty('--dv', dv + 's');
+      if (i === 0) dv += 0.06; // the very first frame must already show the picture
+      s.style.setProperty('--s', (i === 0 ? -0.06 : m.s) + 's'); s.style.setProperty('--d', m.d + 's'); s.style.setProperty('--dv', dv + 's');
       if (last) s.classList.add('ce-last');
-      var at = function (k) { k = Math.max(0, Math.min(m.w.length - 1, parseInt(k, 10) || 0)); return m.w[k] || 0; };
+      var at = function (k) { k = Math.max(0, Math.min(m.w.length - 1, parseInt(k, 10) || 0)); var v = m.w[k] || 0; return i === 0 && v < 0.25 ? -0.22 : v; };
       [].forEach.call(s.querySelectorAll('[data-at]'), function (e) { e.style.setProperty('--at', at(e.dataset.at) + 's'); });
       var ch = [].slice.call(s.querySelectorAll('.k-chunk'));
       ch.forEach(function (c, j) {
@@ -68,6 +72,19 @@
         c.style.setProperty('--cs', cs + 's'); c.style.setProperty('--cd', Math.max(0.2, end - cs) + 's');
         if (last && j === ch.length - 1) c.classList.add('ce-last');
       });
+      // camera punch on every caption change: a cut-like visual change every second or so
+      var st = s.querySelector('.k-stage');
+      if (st && ch.length) {
+        var kf = ['0%{transform:scale(1) translateY(10px)}'], sc = 1, pt = 0;
+        ch.forEach(function (c, j) {
+          if (!j) return; var cs = Math.max(0.05, at(c.firstChild.dataset.w));
+          sc += 0.012 * (cs - pt); kf.push((cs / dv * 100).toFixed(2) + '%{transform:scale(' + sc.toFixed(4) + ') translateY(0)}');
+          sc += 0.04; kf.push((Math.min(dv, cs + 0.14) / dv * 100).toFixed(2) + '%{transform:scale(' + sc.toFixed(4) + ') translateY(0)}'); pt = cs;
+        });
+        sc += 0.012 * (dv - pt); kf.push('100%{transform:scale(' + sc.toFixed(4) + ') translateY(-8px)}');
+        var tag = document.getElementById('ce-kf') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'ce-kf' }));
+        tag.textContent += '@keyframes kd' + i + '{' + kf.join('') + '}'; st.style.animationName = 'kd' + i;
+      }
     });
   }
 
