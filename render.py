@@ -1,3 +1,4 @@
+import urllib.error
 #!/usr/bin/env python3
 """CE renderer v2 (voice-first). HTML scenes -> MP4, timed to the real voice-over.
 usage: render.py spec.json outdir
@@ -7,7 +8,7 @@ HTML contract (reel): <section class="scene" data-vo="spoken line" [data-sfx="en
 The renderer measures each line's real speech, then sets on every scene --s (start, s) and --d (duration, s),
 and on every [data-at] element --at (offset inside the scene, s). Base CSS below does the rest.
 """
-import base64, json, os, re, subprocess, sys, urllib.request, urllib.error
+import base64, json, os, re, subprocess, sys, urllib.request
 from playwright.sync_api import sync_playwright
 
 spec = json.load(open(sys.argv[1], encoding='utf-8'))
@@ -16,29 +17,13 @@ code = ''.join(c for c in str(spec.get('code') or 'asset') if c.isalnum() or c i
 reel = spec.get('kind') == 'reel'
 W, H = 1080, (1920 if reel else 1350)
 fps = int(spec.get('fps') or 30)
-KEY = os.environ.get('ELEVENLABS_API_KEY', '').strip()
+KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 voice = spec.get('voice_id') or os.environ.get('ELEVENLABS_VOICE_ID', '')
 GAP, TAIL, WORD = 0.18, 1.2, 0.36
 
-BASE_CSS = """
-html,body{margin:0;width:1080px;height:%dpx;overflow:hidden}
-.scene{position:absolute;inset:0;opacity:0;animation:ce-scene var(--d,3s) linear var(--s,0s) both}
-@keyframes ce-scene{0%%{opacity:0}0.01%%,99.99%%{opacity:1}100%%{opacity:0}}
-.scene.ce-last{animation-name:ce-last}
-@keyframes ce-last{0%%{opacity:0}0.01%%,100%%{opacity:1}}
-[data-at]{animation:ce-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--s,0s) + var(--at,0s)) both}
-@keyframes ce-in{from{opacity:0;transform:translateY(46px) scale(.96)}to{opacity:1;transform:none}}
-[data-fx=pop]{animation-name:ce-pop}
-@keyframes ce-pop{0%%{opacity:0;transform:scale(.5)}60%%{opacity:1;transform:scale(1.08)}100%%{opacity:1;transform:none}}
-[data-fx=fade]{animation-name:ce-fade}
-@keyframes ce-fade{from{opacity:0}to{opacity:1}}
-[data-fx=right]{animation-name:ce-right}
-@keyframes ce-right{from{opacity:0;transform:translateX(120px)}to{opacity:1;transform:none}}
-[data-fx=left]{animation-name:ce-left}
-@keyframes ce-left{from{opacity:0;transform:translateX(-120px)}to{opacity:1;transform:none}}
-[data-fx=draw]{animation-name:ce-draw;transform-origin:right center}
-@keyframes ce-draw{from{opacity:1;transform:scaleX(0)}to{opacity:1;transform:none}}
-""" % H
+HERE = os.path.dirname(os.path.abspath(__file__))
+KIT_CSS = open(os.path.join(HERE, 'kit.css'), encoding='utf-8').read()
+KIT_JS = open(os.path.join(HERE, 'kit.js'), encoding='utf-8').read()
 
 def ff(*a):
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', *a], check=True)
@@ -49,10 +34,11 @@ def post(path, body):
     try:
         return urllib.request.urlopen(req, timeout=180).read()
     except urllib.error.HTTPError as e:
-        raise RuntimeError('HTTP %s (key length %d): %s' % (e.code, len(KEY), e.read().decode('utf8', 'replace')[:300]))
+        raise RuntimeError('HTTP %s: %s' % (e.code, e.read().decode('utf8','replace')[:300]))
 
 def speak(text, dest):
     """returns (duration, [word start times]) using the real voice; None if unavailable."""
+    text = text.replace('*', '')
     if not (KEY and voice and text.strip()):
         return None
     try:
@@ -72,16 +58,29 @@ def speak(text, dest):
         print('VO failed:', e); return None
 
 def estimate(text):
-    n = max(1, len(text.split()))
+    n = max(1, len(text.replace('*', '').split()))
     return n * WORD + 0.35, [i * WORD for i in range(n)]
 
 html = spec['html']
-html = html.replace('</head>', '<style id="ce-base">' + BASE_CSS + '</style></head>', 1) if '</head>' in html else '<style>' + BASE_CSS + '</style>' + html
+# the kit always comes from this repo: drop any CDN copy the page links to, then inline ours
+html = re.sub(r'<link[^>]+kit\.css[^>]*>', '', html)
+html = re.sub(r'<script[^>]+kit\.js[^>]*>\s*</script>', '', html)
+inject = '<style id="ce-kit-css">' + KIT_CSS + '</style><script id="ce-kit-flag">window.CE_RENDER=1</script><script id="ce-kit-js">' + KIT_JS + '</script>'
+html = html.replace('<head>', '<head>' + inject, 1) if '<head>' in html else inject + html
+
+def local_fonts(pg):
+    """test only: serve fonts from a local folder when the machine cannot reach Google Fonts."""
+    d = os.environ.get('CE_FONTS')
+    if not d: return
+    css = open(os.path.join(d, 'fonts.css'), encoding='utf-8').read()
+    pg.route('**/fonts.googleapis.com/**', lambda r: r.fulfill(status=200, content_type='text/css', body=css if 'Tajawal' in r.request.url else ''))
+    pg.route('**/ce-local-fonts/**', lambda r: r.fulfill(status=200, content_type='font/woff2', body=open(os.path.join(d, r.request.url.rsplit('/', 1)[1]), 'rb').read()))
 
 with sync_playwright() as p:
     kw = {'executable_path': os.environ['CHROME']} if os.environ.get('CHROME') else {}
     b = p.chromium.launch(args=['--no-sandbox', '--font-render-hinting=none'], **kw)
     pg = b.new_page(viewport={'width': W, 'height': H}, device_scale_factor=1)
+    local_fonts(pg)
     pg.set_content(html, wait_until='networkidle'); pg.evaluate('document.fonts.ready')
     if not reel:
         pg.screenshot(path=f'{out}/{code}.png'); b.close(); print('png done'); sys.exit(0)
@@ -108,16 +107,10 @@ with sync_playwright() as p:
     total = t
     print(f'scenes={len(scenes)} real_vo={real} total={total:.2f}s')
 
-    # write timings into the DOM, auto-fit any text wider than the frame, then reload so animations start clean
-    fit = pg.evaluate("""(T) => {
-      const S = [...document.querySelectorAll('.scene')]; let fixed = 0;
-      S.forEach((s, i) => { const m = T[i]; s.style.setProperty('--s', m.s + 's'); s.style.setProperty('--d', m.d + 's');
-        if (i === S.length - 1) s.classList.add('ce-last');
-        s.querySelectorAll('[data-at]').forEach(e => { const k = Math.max(0, Math.min(m.w.length - 1, parseInt(e.dataset.at) || 0)); e.style.setProperty('--at', (m.w[k] || 0) + 's'); }); });
-      document.querySelectorAll('.scene *').forEach(e => { if (![...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return;
-        const r = e.getBoundingClientRect(); if (r.width > 1000 || r.left < 30 || r.right > 1050) { const k = Math.max(0.45, 980 / Math.max(r.width, 1)); if (k < 1) { e.style.fontSize = (parseFloat(getComputedStyle(e).fontSize) * k) + 'px'; fixed++; } } });
-      return fixed; }""", timing)
-    print('auto-fit text elements:', fit)
+    # real timings into the DOM (captions, entrances, scene windows), fit every visual to its zone, then reload clean
+    pg.evaluate('T => window.ceApply(T)', timing)
+    pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
+    pg.evaluate("window.ceFit(); ['ce-kit-js','ce-kit-flag'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); })")
     final_html = pg.evaluate('"<!DOCTYPE html>" + document.documentElement.outerHTML')
     pg.set_content(final_html, wait_until='networkidle'); pg.evaluate('document.fonts.ready')
     pg.evaluate('document.getAnimations().forEach(a => a.pause())')
