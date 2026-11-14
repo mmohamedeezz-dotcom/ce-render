@@ -47,16 +47,17 @@ def fetch_image(url):
     if os.path.exists(f) and os.path.getsize(f) > 20000: return f
     if os.environ.get('CE_MOCK'):
         ff('-f', 'lavfi', '-i', 'gradients=s=1080x2048:c0=0x5b3a1e:c1=0xd9a441:x0=0:y0=0:x1=1080:y1=2048', '-frames:v', '1', '-q:v', '2', f); return f
-    for attempt in range(3):
+    for attempt in range(5):
         try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'ce-render/1.0'})
-            data = urllib.request.urlopen(req, timeout=120).read()
+            u = url if attempt < 3 else url.replace('model=flux', 'model=turbo')  # second engine if the first keeps refusing
+            req = urllib.request.Request(u, headers={'User-Agent': 'ce-render/1.0'})
+            data = urllib.request.urlopen(req, timeout=150).read()
             if data[:2] == b'\xff\xd8' and len(data) > 20000:
-                open(f, 'wb').write(data); return f
-            print(f'image: not a usable picture ({len(data)} bytes)')
+                open(f, 'wb').write(data); time.sleep(16); return f
+            print(f'image try {attempt + 1}: not a usable picture ({len(data)} bytes)')
         except Exception as e:
-            print('image failed:', str(e)[:120])
-        time.sleep(16)
+            print(f'image try {attempt + 1} failed:', str(e)[:120])
+        time.sleep(20 + 10 * attempt)
     return None
 
 def brand_music(brand, prompt, dest):

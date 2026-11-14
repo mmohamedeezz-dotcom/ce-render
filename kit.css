@@ -26,6 +26,8 @@ body{--brand:#1D4ED8;--accent:#FFB703;--paper:#F5F2EC;--ink:#14161B;--hl:var(--b
 .k-bg{position:absolute;inset:0;background-size:cover;background-position:center top;animation:k-ken var(--dv,var(--d,3s)) linear var(--s,0s) both}
 .k-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42) 0%,rgba(0,0,0,.06) 22%,rgba(0,0,0,.1) 48%,rgba(0,0,0,.72) 66%,rgba(0,0,0,.9) 100%)}
 @keyframes k-ken{from{transform:scale(1.12)}to{transform:scale(1)}}
+/* keep the person visible: the visual sits low on photo scenes */
+.scene.t-photo:not(.hook) .k-stage{top:700px;height:480px}
 .t-photo .k-card,.t-photo .k-list li{background:rgba(255,255,255,.94);color:var(--ink)}
 .k-photo{width:860px;height:860px;border-radius:64px;background-size:cover;background-position:center;box-shadow:0 50px 100px rgba(12,22,52,.35),inset 0 0 0 6px rgba(255,255,255,.7)}
 /* moving background light, always in motion */
