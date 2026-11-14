@@ -128,7 +128,7 @@
     document.getAnimations().forEach(function (a) { try { a.finish(); } catch (e) {} });
     scenes().forEach(function (s, i) {
       var f = s.querySelector('.k-fit'), cap = s.querySelector('.k-cap');
-      [].forEach.call(s.querySelectorAll('.k-fit > *, .k-w'), function (e) {
+      [].forEach.call(s.querySelectorAll('.k-fit > *:not(.k-stat):not(.k-price), .k-stat > *, .k-price > *, .k-w'), function (e) {
         var r = e.getBoundingClientRect(); if (!r.width) return;
         if (r.left < 4 || r.right > 1076 || r.top < 0 || r.bottom > 1920) out.off_frame.push((i + 1) + ': ' + (e.textContent || e.className).trim().slice(0, 24));
       });
