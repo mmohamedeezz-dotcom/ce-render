@@ -1,0 +1,66 @@
+name: render
+on:
+  repository_dispatch:
+    types: [render]
+permissions:
+  contents: write
+concurrency:
+  group: render-${{ github.event.client_payload.job }}
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q playwright
+          python -m playwright install --with-deps chromium
+      - name: Spec
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          p = json.loads(os.environ['PAYLOAD'])
+          json.dump(p['spec'], open('spec.json', 'w', encoding='utf-8'), ensure_ascii=False)
+          open('job.txt', 'w').write(''.join(c for c in p['job'] if c.isalnum()))
+          PY
+      - name: Render
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+        run: python render.py spec.json out
+      - name: Publish
+        id: pub
+        run: |
+          JOB=$(cat job.txt)
+          git config user.name "ce-render" && git config user.email "ce-render@users.noreply.github.com"
+          git fetch origin media 2>/dev/null && git checkout media 2>/dev/null || git checkout --orphan media
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          mkdir -p v/$JOB && cp out/* v/$JOB/
+          git add -f v && git commit -qm "render $JOB" && git push -q origin media
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "files=$(ls out | tr '\n' ',')" >> $GITHUB_OUTPUT
+      - name: Callback
+        if: always()
+        env:
+          CB: ${{ github.event.client_payload.callback }}
+          TOKEN: ${{ github.event.client_payload.token }}
+          JOBID: ${{ github.event.client_payload.job }}
+          BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ steps.pub.outputs.sha }}/v
+          FILES: ${{ steps.pub.outputs.files }}
+          STATUS: ${{ job.status }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          job = ''.join(c for c in os.environ['JOBID'] if c.isalnum())
+          body = {'action': 'render_done', 'job': os.environ['JOBID'], 'token': os.environ['TOKEN'], 'status': os.environ['STATUS'],
+                  'base': os.environ['BASE'] + '/' + job, 'files': [f for f in os.environ.get('FILES', '').split(',') if f]}
+          req = urllib.request.Request(os.environ['CB'], data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+          print(urllib.request.urlopen(req, timeout=60).status)
+          PY
