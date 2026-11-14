@@ -6,10 +6,25 @@
   function scenes() { return [].slice.call(document.querySelectorAll('.scene')); }
   function toks(s) { return (s.dataset.vo || '').trim().split(/\s+/).filter(Boolean); }
 
+  function lum(c) {
+    c = (c || '').trim().replace('#', ''); if (c.length === 3) c = c.replace(/./g, '$&$&');
+    if (!/^[0-9a-f]{6}$/i.test(c)) return null; var n = parseInt(c, 16), k = [0.2126, 0.7152, 0.0722];
+    return [n >> 16, n >> 8 & 255, n & 255].reduce(function (a, v, i) { v /= 255; return a + k[i] * (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); }, 0);
+  }
+  function cr(a, b) { return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
+
   function build() {
     var root = document.documentElement;
     if (root.dataset.ceBuilt) return; root.dataset.ceBuilt = '1';
     var S = scenes(), brand = document.body.dataset.brand || '', TR = ['up', 'circle', 'side'];
+    // readable colours whatever palette the brand has
+    var cs = getComputedStyle(document.body), bs = document.body.style;
+    var La = lum(cs.getPropertyValue('--accent')), Lb = lum(cs.getPropertyValue('--brand')), Li = lum(cs.getPropertyValue('--ink')), Lp = lum(cs.getPropertyValue('--paper'));
+    if (La != null && Li != null) bs.setProperty('--on-accent', cr(La, 1) > cr(La, Li) ? '#fff' : 'var(--ink)');
+    if (Lb != null && Li != null) bs.setProperty('--on-brand', cr(Lb, 1) >= 3 || cr(Lb, 1) > cr(Lb, Li) ? '#fff' : 'var(--ink)');
+    if (La != null) bs.setProperty('--hl-dark', La >= 0.12 ? 'var(--accent)' : (Lb != null && Lb >= 0.12 ? 'var(--brand)' : '#FFD166'));
+    if (La != null && Lb != null && cr(La, Lb) < 2.4) document.body.classList.add('lowc');
+    if (Lb != null && Lp != null && cr(Lb, Lp) < 2.6) document.body.classList.add('lowb');
     S.forEach(function (s, i) {
       if (!/\bt-(light|brand|dark)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
       if (i && !s.dataset.tr) s.dataset.tr = TR[(i - 1) % 3];
