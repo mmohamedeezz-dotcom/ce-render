@@ -16,7 +16,7 @@ out = sys.argv[2]; os.makedirs(out, exist_ok=True)
 code = ''.join(c for c in str(spec.get('code') or 'asset') if c.isalnum() or c in '-_') or 'asset'
 reel = spec.get('kind') == 'reel'
 W, H = 1080, (1920 if reel else 1350)
-fps = int(spec.get('fps') or 30)
+fps = 60 if reel else int(spec.get('fps') or 30)  # 60 for smooth motion
 KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 voice = spec.get('voice_id') or os.environ.get('ELEVENLABS_VOICE_ID', '')
 GAP, TAIL, WORD = 0.18, 1.2, 0.36
@@ -29,6 +29,8 @@ def ff(*a):
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', *a], check=True)
 
 def post(path, body):
+    if os.environ.get('CE_MOCK'):
+        import ce_mock; return ce_mock.post(path, body)
     req = urllib.request.Request('https://api.elevenlabs.io' + path, data=json.dumps(body).encode(),
                                  headers={'xi-api-key': KEY, 'Content-Type': 'application/json'})
     try:
@@ -57,17 +59,58 @@ def speak(text, dest):
     except Exception as e:
         print('VO failed:', e); return None
 
+def adur(f):
+    return float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).decode().strip())
+
+def silences(f, db, d):
+    log = subprocess.run(['ffmpeg', '-hide_banner', '-i', f, '-af', f'silencedetect=noise={db}dB:d={d}', '-f', 'null', '-'], capture_output=True, text=True).stderr
+    ss = [max(0.0, float(x)) for x in re.findall(r'silence_start: (-?[0-9.]+)', log)]; ee = [float(x) for x in re.findall(r'silence_end: ([0-9.]+)', log)]
+    return list(zip(ss, ee))
+
+def sync_err(f, starts):
+    """how far each scene's first word is from a real speech onset in the audio (seconds): (max, mean)."""
+    if not starts: return 0.0, 0.0
+    on = [0.0] + [e for _, e in silences(f, -32, 0.12)]
+    errs = [min(abs(t - o) for o in on) for t in starts]
+    return max(errs), sum(errs) / len(errs)
+
+def tighten(raw, dest, words):
+    """cap every pause at 0.3s; returns moved word times, or None if the cut did not come out exact."""
+    cuts = [(a + (0.05 if a <= 0.01 else 0.3), b - 0.03) for a, b in silences(raw, -38, 0.36)]
+    cuts = [(a, b) for a, b in cuts if b - a > 0.05]
+    if not cuts: return None
+    keep, p = [], 0.0
+    for a, b in cuts: keep.append((p, a)); p = b
+    keep.append((p, None))
+    flt = ';'.join(f'[0:a]atrim=start={x:.3f}' + (f':end={y:.3f}' if y is not None else '') + f',asetpts=PTS-STARTPTS[k{i}]' for i, (x, y) in enumerate(keep))
+    flt += ';' + ''.join(f'[k{i}]' for i in range(len(keep))) + f'concat=n={len(keep)}:v=0:a=1[o]'
+    ff('-i', raw, '-filter_complex', flt, '-map', '[o]', '-ar', '44100', dest)
+    want = adur(raw) - sum(b - a for a, b in cuts)
+    if abs(adur(dest) - want) > 0.12:
+        print(f'pause cut not exact ({adur(dest):.2f}s vs {want:.2f}s), dropped'); return None
+    def mv(t):
+        off = 0.0
+        for a, b in cuts:
+            if t >= b: off += b - a
+            elif t > a: return a - off
+        return t - off
+    return [mv(t) for t in words]
+
+VOICE = {'mode': 'none'}
+
 def speak_all(texts, dest):
-    """one take for the whole script (natural flow), pauses tightened; returns (duration, word starts, words per scene)."""
+    """one take for the whole script; every timing candidate is checked against the audio itself and the best one wins."""
     if not (KEY and voice): return None
     parts = [t.replace('*', '').strip() for t in texts]
     if not all(parts): return None
-    parts = [p if re.search(r'[.!?\u061f\u2026]$', p) else p + '.' for p in parts]
+    parts = [p if re.search(r'[.!?؟…]$', p) else p + '.' for p in parts]
     full, counts = ' '.join(parts), [len(p.split()) for p in parts]
+    offs = [sum(counts[:i]) for i in range(len(counts))]
     v3 = {'stability': 0.5, 'similarity_boost': 0.8, 'speed': 1.08}
     v2 = {'stability': 0.45, 'similarity_boost': 0.8, 'style': 0.3, 'use_speaker_boost': True, 'speed': 1.08}
     tries = [('eleven_v3', v3, 'ar'), ('eleven_v3', None, 'ar'), ('eleven_multilingual_v2', v2, None), ('eleven_multilingual_v2', None, None)]
     if spec.get('model_id'): tries.insert(0, (spec['model_id'], None, None))
+    raw = dest + '.raw.mp3'
     for model, vs, lang in tries:
         body = {'text': full, 'model_id': model}
         if vs: body['voice_settings'] = vs
@@ -75,39 +118,35 @@ def speak_all(texts, dest):
         try:
             r = json.loads(post(f'/v1/text-to-speech/{voice}/with-timestamps?output_format=mp3_44100_128', body))
             al = r.get('alignment') or r.get('normalized_alignment') or {}
-            ch, st = al.get('characters') or [], al.get('character_start_times_seconds') or []
+            ch, st, en = al.get('characters') or [], al.get('character_start_times_seconds') or [], al.get('character_end_times_seconds') or []
             words, prev = [], ' '
             for c, t in zip(ch, st):
                 if not c.isspace() and prev.isspace(): words.append(float(t))
                 prev = c
             if len(words) != sum(counts):
                 print(f'VO {model}: word count mismatch {len(words)} vs {sum(counts)}'); continue
-            raw = dest + '.raw.mp3'; open(raw, 'wb').write(base64.b64decode(r['audio_base64']))
-            break
+            open(raw, 'wb').write(base64.b64decode(r['audio_base64']))
         except Exception as e:
-            print(f'VO {model} failed:', e)
-    else:
-        return None
-    # tighten every pause to 0.3s at most, and move the word times with it
-    log = subprocess.run(['ffmpeg', '-hide_banner', '-i', raw, '-af', 'silencedetect=noise=-38dB:d=0.34', '-f', 'null', '-'], capture_output=True, text=True).stderr
-    ss = [float(x) for x in re.findall(r'silence_start: (-?[0-9.]+)', log)]; ee = [float(x) for x in re.findall(r'silence_end: ([0-9.]+)', log)]
-    cuts = [(max(0.0, a) + (0.05 if a <= 0.01 else 0.3), b - 0.02) for a, b in zip(ss, ee)]
-    cuts = [(a, b) for a, b in cuts if b - a > 0.04]
-    if cuts:
-        sel = '+'.join(f'between(t,{a:.3f},{b:.3f})' for a, b in cuts)
-        ff('-i', raw, '-af', f"aselect='not({sel})',asetpts=N/SR/TB", dest)
-        def mv(t):
-            off = 0.0
-            for a, b in cuts:
-                if t >= b: off += b - a
-                elif t > a: return a - off
-            return t - off
-        words = [mv(t) for t in words]
-    else:
-        os.replace(raw, dest)
-    dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', dest]).decode().strip())
-    print(f'VO one take: model={model} words={len(words)} pauses_tightened={len(cuts)} dur={dur:.2f}s')
-    return dur, words, counts
+            print(f'VO {model} failed:', e); continue
+        first = lambda w: [w[o] for o in offs[1:]]
+        cands = [('as delivered', raw, words)]
+        sp = silences(raw, -38, 0.2); speech_end = sp[-1][0] if sp and sp[-1][1] >= adur(raw) - 0.05 else adur(raw)
+        if en and en[-1] > 0.5 and abs(speech_end / en[-1] - 1) > 0.03:
+            k = speech_end / en[-1]; cands.append((f'rescaled x{k:.3f}', raw, [t * k for t in words]))
+        best = min(cands, key=lambda c: sync_err(c[1], first(c[2]))[1])
+        tw = tighten(best[1], dest + '.cut.wav', best[2])
+        if tw: cands.append((best[0] + ' + pauses tightened', dest + '.cut.wav', tw))
+        scored = [(sync_err(c[1], first(c[2])), c) for c in cands]
+        for (mx, mean), c in scored: print(f'  sync check [{c[0]}]: max {mx:.2f}s mean {mean:.2f}s')
+        ok = [x for x in scored if x[0][0] <= 0.25 and x[0][1] <= 0.12]
+        if not ok:
+            print(f'VO {model}: no timing passed the sync check'); continue
+        (mx, mean), (name, f, w) = ok[-1] if ok[-1][1][1].endswith('.cut.wav') else min(ok, key=lambda x: x[0][1])
+        ff('-i', f, '-ar', '44100', dest)
+        VOICE.update(mode='one take', model=model, timing=name, sync_max=round(mx, 3), sync_mean=round(mean, 3))
+        print(f'VO one take: model={model} timing={name} words={len(w)} dur={adur(dest):.2f}s')
+        return adur(dest), w, counts
+    return None
 
 def estimate(text):
     n = max(1, len(text.replace('*', '').split()))
@@ -141,11 +180,11 @@ with sync_playwright() as p:
     if not scenes:
         print('no .scene sections'); sys.exit(1)
     timing, t, tracks, real = [], 0.0, [], 0
-    one = speak_all([sc['vo'] for sc in scenes], f'{out}/_vo.mp3')
+    one = speak_all([sc['vo'] for sc in scenes], f'{out}/_vo.wav')
     if one:
-        dur, words, counts = one; real = len(scenes); tracks.append((f'{out}/_vo.mp3', 0.0, 1.0, False))
+        dur, words, counts = one; real = len(scenes); tracks.append((f'{out}/_vo.wav', 0.0, 1.0, False))
         offs = [sum(counts[:i]) for i in range(len(counts))]
-        starts = [0.0] + [max(0.0, words[o] - 0.08) for o in offs[1:]]
+        starts = [0.0] + [max(0.0, words[o] - 0.25) for o in offs[1:]]  # the cut lands just before the word, never after it
         for i, o in enumerate(offs):
             last = i == len(offs) - 1
             d = (dur + TAIL if last else starts[i + 1]) - starts[i]
@@ -156,6 +195,7 @@ with sync_playwright() as p:
             f = f'{out}/_vo{i}.mp3'
             r = speak(sc['vo'], f)
             if r: real += 1; tracks.append((f, t, 1.0, False))
+            if r: VOICE.update(mode='per scene', model=spec.get('model_id') or 'eleven_multilingual_v2', sync_max=0.0, sync_mean=0.0)
             dur, words = r or estimate(sc['vo'])
             d = dur + GAP + (TAIL if i == len(scenes) - 1 else 0)
             timing.append({'s': round(t, 3), 'd': round(d, 3), 'w': [round(x, 3) for x in words]})
@@ -176,6 +216,7 @@ with sync_playwright() as p:
     pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
     pg.evaluate("window.ceFit(); ['ce-kit-js','ce-kit-flag'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); })")
     final_html = pg.evaluate('"<!DOCTYPE html>" + document.documentElement.outerHTML')
+    LAYOUT = pg.evaluate('window.ceQA()')
     pg.set_content(final_html, wait_until='networkidle'); pg.evaluate('document.fonts.ready')
     pg.evaluate('document.getAnimations().forEach(a => a.pause())')
     silent = f'{out}/_silent.mp4'
@@ -200,6 +241,38 @@ if mix(tracks, f'{out}/_mix.wav', 'loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100
     mix([x for x in tracks if x[3]], f'{out}/{code}_sfx.mp3')
 else:
     os.replace(silent, final)
+
+# ---------- review of the finished file: what the viewer will actually get ----------
+def qa_report():
+    L = []
+    def add(ok, t): L.append({'ok': bool(ok), 't': t})
+    try:
+        px = subprocess.run(['ffmpeg', '-v', 'error', '-i', final, '-vf', r'select=eq(n\,0),scale=32:32,format=gray', '-frames:v', '1', '-f', 'rawvideo', '-'], capture_output=True).stdout
+        m = sum(px) / max(1, len(px)); sd = (sum((p - m) ** 2 for p in px) / max(1, len(px))) ** 0.5
+        add(sd > 10, 'أول فريم فيه صورة مش فاضي' if sd > 10 else 'أول فريم فاضي')
+        fz = subprocess.run(['ffmpeg', '-hide_banner', '-i', final, '-vf', 'freezedetect=n=0.0015:d=1.0', '-an', '-f', 'null', '-'], capture_output=True, text=True).stderr
+        mx = max([float(x) for x in re.findall(r'freeze_duration: ([0-9.]+)', fz)] or [0.0])
+        add(mx <= 2.0, f'أطول وقفة من غير حركة {mx:.1f} ثانية' + ('' if mx <= 2.0 else ' (أكتر من ثانيتين)'))
+        d = adur(final); add(10 <= d <= 45, f'المدة {d:.1f} ثانية، {fps} فريم في الثانية')
+        if real:
+            v = VOICE; okv = v.get('sync_max', 9) <= 0.25
+            add(okv, f"تزامن الصوت مع الصورة: أقصى فرق {v.get('sync_max', 0):.2f} ثانية (موديل {v.get('model')}, {v.get('mode')}, {v.get('timing', '')})")
+            ln = subprocess.run(['ffmpeg', '-hide_banner', '-i', final, '-vn', '-af', 'loudnorm=print_format=json', '-f', 'null', '-'], capture_output=True, text=True).stderr
+            i = re.search(r'"input_i"\s*:\s*"(-?[0-9.]+)"', ln); lu = float(i.group(1)) if i else -99
+            add(-17 <= lu <= -12, f'مستوى الصوت {lu:.1f} LUFS')
+        else:
+            add(False, 'الفيديو من غير فويس أوفر')
+        lay = LAYOUT or {}
+        for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
+            items = lay.get(key) or []
+            add(not items, f'{name}: {len(items)}' + (' (' + ' | '.join(str(x) for x in items[:4]) + ')' if items else ''))
+    except Exception as e:
+        add(False, f'المراجعة الفنية وقفت: {e}')
+    rep = {'pass': all(x['ok'] for x in L), 'checks': L, 'voice': VOICE, 'scenes': len(timing)}
+    json.dump(rep, open(f'{out}/{code}_qa.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    print('QA', 'PASS' if rep['pass'] else 'FAIL'); [print(' ', 'ok ' if x['ok'] else 'BAD', x['t']) for x in L]
+
+qa_report()
 for f in os.listdir(out):
     if f.startswith('_'): os.remove(os.path.join(out, f))
 print('mp4 done', final, 'voice' if real else 'NO VOICE (silent)')
