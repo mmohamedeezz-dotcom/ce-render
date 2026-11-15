@@ -1,0 +1,19 @@
+name: cftest
+on:
+  workflow_dispatch:
+  push:
+    paths: ['ce_img.py', '.github/workflows/cftest.yml']
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Selftest
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          sudo apt-get update -q >/dev/null
+          sudo apt-get install -y -q ffmpeg >/dev/null
+          python ce_img.py selftest
