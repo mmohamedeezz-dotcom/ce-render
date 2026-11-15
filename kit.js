@@ -37,15 +37,16 @@
     var p = draw ? DRAW_STYLE + e.dataset.img + '. No text, no letters, no numbers, no dates, no signs, no labels, no speech bubbles.'
                  : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
     var w = 1080, h = sq ? 1080 : 2048, sd = seed(e.dataset.img);
-    return { prompt: p, w: w, h: h, seed: sd, url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=' + w + '&height=' + h + '&model=flux&nologo=true&seed=' + sd };
+    return { prompt: p, w: w, h: h, seed: sd, move: (draw && e.dataset.move) || '', url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=' + w + '&height=' + h + '&model=flux&nologo=true&seed=' + sd };
   }
-  function setImg(i, uri, fg) {
+  function setImg(i, uri, fg, clip) {
     var e = imgs()[i]; if (!e) return; var sc = e.classList.contains('scene'), t = sc ? e.querySelector('.k-bg') : e;
     if (uri && i < (isDraw() ? 12 : 4)) {
       if (fg && sc) {  // two layers: the far one and the near one move against each other
         t.innerHTML = ''; ['k-far', 'k-near'].forEach(function (c, k) { var d = document.createElement('div'); d.className = c; d.style.backgroundImage = 'url("' + (k ? fg : uri) + '")'; t.appendChild(d); });
         t.classList.add('k-deep');
       } else t.style.backgroundImage = 'url("' + uri + '")';
+      if (clip && sc) { var v = document.createElement('div'); v.className = 'k-vid'; v.style.backgroundImage = 'url("' + clip + '")'; t.appendChild(v); t.classList.add('k-clip'); }
       e.dataset.imgOk = '1'; return;
     }
     if (sc) { if (t) t.remove(); e.classList.remove('t-photo'); e.classList.add('t-dark'); } else e.style.display = 'none';

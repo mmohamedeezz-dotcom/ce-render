@@ -40,6 +40,7 @@ def post(path, body):
 
 CACHE = os.environ.get('CE_CACHE', 'cache'); os.makedirs(CACHE, exist_ok=True)
 import ce_img
+import ce_i2v
 ASSETS = {'images_wanted': 0, 'images_ok': 0, 'music': ''}
 
 def brand_music(brand, prompt, dest):
@@ -245,7 +246,9 @@ with sync_playwright() as p:
         if f:
             L = ce_img.make_layers(f) if (STYLE == 'draw' and os.environ.get('CE_DEPTH')) else None  # depth warp is off: it distorted the drawings
             if L: ASSETS['deep'] = ASSETS.get('deep', 0) + 1
-            pg.evaluate('([i, d, g]) => window.ceSetImage(i, d, g)', [k, ce_img.data_uri(L[0] if L else f), ce_img.data_uri(L[1]) if L else None]); ASSETS['images_ok'] += 1
+            V = ce_i2v.clip_sprite(f, u.get('move') or 'The subject makes one small natural movement, like a slow blink or a slight turn of the head.') if STYLE == 'draw' else None
+            if V: ASSETS['clips'] = ASSETS.get('clips', 0) + 1
+            pg.evaluate('([i, d, g, v]) => window.ceSetImage(i, d, g, v)', [k, ce_img.data_uri(L[0] if L else f), ce_img.data_uri(L[1]) if L else None, ce_img.data_uri(V) if V else None]); ASSETS['images_ok'] += 1
         else:
             pg.evaluate('i => window.ceSetImage(i, null)', k)
     ASSETS['providers'] = dict(ce_img.USED)
@@ -327,7 +330,7 @@ def qa_report():
             w, k = ASSETS['images_wanted'], ASSETS['images_ok']
             src = '، '.join(f'{n}: {c}' for n, c in (ASSETS.get('providers') or {}).items())
             weak = (ASSETS.get('providers') or {}).get('pollinations', 0)
-            add((w == 0 or k == min(w, IMG_MAX)) and not weak, (f'الرسومات: {k} من {w} اتولدوا ({src})' + (f'، منهم {weak} من المولّد الضعيف' if weak else '') + (f'، حركة عمق في {ASSETS.get("deep", 0)}' if STYLE == 'draw' else '')) if w else 'الصور: الريل ما طلبش صور')
+            add((w == 0 or k == min(w, IMG_MAX)) and not weak, (f'الرسومات: {k} من {w} اتولدوا ({src})' + (f'، منهم {weak} من المولّد الضعيف' if weak else '') + (f'، حركة حقيقية في {ASSETS.get("clips", 0)}' + (' (حصة التحريك خلصت والباقي ثابت)' if ce_i2v.STOP['why'] else '') if STYLE == 'draw' else '')) if w else 'الصور: الريل ما طلبش صور')
         lay = LAYOUT or {}
         for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
             items = lay.get(key) or []

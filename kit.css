@@ -163,3 +163,10 @@ body{--brand:#1D4ED8;--accent:#FFB703;--paper:#F5F2EC;--ink:#14161B;--hl:var(--b
 .k-phone{width:560px;height:800px;box-sizing:border-box;border-radius:88px;background:#0B0C10;padding:22px;box-shadow:0 56px 110px rgba(0,0,0,.4),inset 0 0 0 4px #2B2D35}
 .k-phone>div{height:100%;box-sizing:border-box;border-radius:68px;background:var(--paper);color:var(--ink);overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;padding:40px 24px}
 .k-phone .k-card,.k-phone .k-list,.k-phone .k-chat{zoom:.54}
+
+/* draw style: a real animated clip plays as a 7x7 sprite sheet (49 frames) stretched over the scene's time */
+.k-bg .k-vid{position:absolute;inset:0;background-size:700% 700%;background-position:0 0;background-repeat:no-repeat;animation:k-cx calc(var(--dv,var(--d,3s))/7) steps(7,jump-none) var(--s,0s) 7 both,k-cy var(--dv,var(--d,3s)) steps(7,jump-none) var(--s,0s) both}
+@keyframes k-cx{from{background-position-x:0%}to{background-position-x:100%}}
+@keyframes k-cy{from{background-position-y:0%}to{background-position-y:100%}}
+.draw .scene .k-bg.k-clip{animation-name:k-ken2}
+@keyframes k-ken2{from{transform:scale(1.04)}to{transform:scale(1)}}
