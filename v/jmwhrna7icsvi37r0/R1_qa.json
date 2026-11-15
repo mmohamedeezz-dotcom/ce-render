@@ -1,0 +1,53 @@
+{
+ "pass": false,
+ "checks": [
+  {
+   "ok": true,
+   "t": "أول فريم فيه صورة مش فاضي"
+  },
+  {
+   "ok": true,
+   "t": "أطول وقفة من غير حركة 0.0 ثانية"
+  },
+  {
+   "ok": true,
+   "t": "المدة 30.1 ثانية، 60 فريم في الثانية"
+  },
+  {
+   "ok": true,
+   "t": "تزامن الصوت مع الصورة: أقصى فرق 0.10 ثانية (موديل eleven_v3, one take, as delivered + pauses tightened)"
+  },
+  {
+   "ok": true,
+   "t": "مستوى الصوت -14.9 LUFS"
+  },
+  {
+   "ok": true,
+   "t": "موسيقى خلفية: موجودة"
+  },
+  {
+   "ok": false,
+   "t": "الرسومات: 7 من 9 اتولدوا (flux space: 3، pollinations: 4)، منهم 4 من المولّد الضعيف، حركة عمق في 7"
+  },
+  {
+   "ok": true,
+   "t": "عناصر خارجة بره الفريم: 0"
+  },
+  {
+   "ok": true,
+   "t": "نص مقصوص جوه مكوّن: 0"
+  },
+  {
+   "ok": true,
+   "t": "الفيجوال داخل على الكابشن: 0"
+  }
+ ],
+ "voice": {
+  "mode": "one take",
+  "model": "eleven_v3",
+  "timing": "as delivered + pauses tightened",
+  "sync_max": 0.104,
+  "sync_mean": 0.051
+ },
+ "scenes": 10
+}
