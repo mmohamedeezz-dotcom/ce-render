@@ -34,7 +34,7 @@
   function imgUrl(e) {
     var draw = isDraw(), cast = document.body.dataset.cast || '';
     var p = draw
-      ? (cast ? cast + '. ' : '') + e.dataset.img + ', digital comic book illustration, clean bold ink outlines, flat cel shading, warm muted colour palette, cinematic composition, vertical frame, no text, no letters, no speech bubbles, no watermark'
+      ? 'Flat 2D cartoon illustration, thick black ink outlines, flat colours, simple shapes, hand-drawn storybook comic style, warm muted palette, not a photo, not 3D. Scene: ' + e.dataset.img + '.' + (cast ? ' Main character: ' + cast + '.' : '') + ' Wide shot showing the action and the place, no text, no letters, no speech bubbles'
       : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
     var sq = !e.classList.contains('scene');
     return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=1080&height=' + (sq ? 1080 : 2048) + '&model=flux&nologo=true&seed=' + (draw ? seed(cast || 'draw') : seed(e.dataset.img));
