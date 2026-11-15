@@ -1,0 +1,39 @@
+name: i2vtest
+on:
+  workflow_dispatch:
+  push:
+    paths: ['ce_i2v.py', '.github/workflows/i2vtest.yml']
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install -q gradio_client
+      - name: Test
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python ce_i2v.py selftest out
+      - name: Publish
+        if: always()
+        run: |
+          git config user.name ce-render
+          git config user.email ce-render@users.noreply.github.com
+          git checkout -q --orphan i2v-${{ github.run_id }}
+          git rm -rfq --cached . >/dev/null 2>&1 || true
+          mkdir -p t
+          cp out/* t/
+          git add -f t
+          git commit -qm i2vtest
+          git push -q origin i2v-${{ github.run_id }}
