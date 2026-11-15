@@ -30,14 +30,18 @@
   }
   function seed(str) { var h = 7; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
   function imgs() { return [].slice.call(document.querySelectorAll('.scene[data-img], .k-photo[data-img]')); }
+  function isDraw() { return document.body.dataset.style === 'draw'; }
   function imgUrl(e) {
-    var p = e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
+    var draw = isDraw(), cast = document.body.dataset.cast || '';
+    var p = draw
+      ? (cast ? cast + '. ' : '') + e.dataset.img + ', digital comic book illustration, clean bold ink outlines, flat cel shading, warm muted colour palette, cinematic composition, vertical frame, no text, no letters, no speech bubbles, no watermark'
+      : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
     var sq = !e.classList.contains('scene');
-    return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=1080&height=' + (sq ? 1080 : 2048) + '&model=flux&nologo=true&seed=' + seed(e.dataset.img);
+    return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=1080&height=' + (sq ? 1080 : 2048) + '&model=flux&nologo=true&seed=' + (draw ? seed(cast || 'draw') : seed(e.dataset.img));
   }
   function setImg(i, uri) {
     var e = imgs()[i]; if (!e) return; var sc = e.classList.contains('scene'), t = sc ? e.querySelector('.k-bg') : e;
-    if (uri && i < 4) { t.style.backgroundImage = 'url("' + uri + '")'; e.dataset.imgOk = '1'; return; }
+    if (uri && i < (isDraw() ? 12 : 4)) { t.style.backgroundImage = 'url("' + uri + '")'; e.dataset.imgOk = '1'; return; }
     if (sc) { if (t) t.remove(); e.classList.remove('t-photo'); e.classList.add('t-dark'); } else e.style.display = 'none';
     e.dataset.imgOk = '0';
   }
@@ -46,6 +50,7 @@
     var root = document.documentElement;
     if (root.dataset.ceBuilt) return; root.dataset.ceBuilt = '1';
     var S = scenes(), brand = document.body.dataset.brand || '', TR = ['up', 'circle', 'side'];
+    if (isDraw()) document.body.classList.add('draw');
     var BT = brand.split(/\s+/); // brand words keep their own spelling on screen
     // readable colours whatever palette the brand has
     var cs = getComputedStyle(document.body), bs = document.body.style;

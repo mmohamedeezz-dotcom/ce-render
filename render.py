@@ -146,8 +146,9 @@ def speak_all(texts, dest):
     parts = [p if re.search(r'[.!?؟…]$', p) else p + '.' for p in parts]
     full, counts = ' '.join(parts), [len(p.split()) for p in parts]
     offs = [sum(counts[:i]) for i in range(len(counts))]
-    v3 = {'stability': 0.5, 'similarity_boost': 0.8, 'speed': 1.08}
-    v2 = {'stability': 0.45, 'similarity_boost': 0.8, 'style': 0.3, 'use_speaker_boost': True, 'speed': 1.08}
+    sp = 0.98 if globals().get('STYLE') == 'draw' else 1.08  # a story is told slower than an ad
+    v3 = {'stability': 0.5, 'similarity_boost': 0.8, 'speed': sp}
+    v2 = {'stability': 0.45, 'similarity_boost': 0.8, 'style': 0.3, 'use_speaker_boost': True, 'speed': sp}
     tries = [('eleven_v3', v3, 'ar'), ('eleven_v3', None, 'ar'), ('eleven_multilingual_v2', v2, None), ('eleven_multilingual_v2', None, None)]
     if spec.get('model_id'): tries.insert(0, (spec['model_id'], None, None))
     raw = dest + '.raw.mp3'
@@ -216,6 +217,7 @@ with sync_playwright() as p:
     if not reel:
         pg.screenshot(path=f'{out}/{code}.png'); b.close(); print('png done'); sys.exit(0)
 
+    STYLE = pg.evaluate("document.body.dataset.style || ''")
     scenes = pg.evaluate("[...document.querySelectorAll('.scene')].map(s => ({vo: s.dataset.vo || '', sfx: s.dataset.sfx || ''}))")
     if not scenes:
         print('no .scene sections'); sys.exit(1)
@@ -254,9 +256,10 @@ with sync_playwright() as p:
     # real timings into the DOM (captions, entrances, scene windows), fit every visual to its zone, then reload clean
     pg.evaluate('T => window.ceApply(T)', timing)
     urls = pg.evaluate('window.ceImages()')
+    IMG_MAX = 12 if STYLE == 'draw' else 4
     ASSETS['images_wanted'] = len(urls)
     for k, u in enumerate(urls):
-        f = fetch_image(u) if k < 4 else None
+        f = fetch_image(u) if k < IMG_MAX else None
         if f:
             pg.evaluate('([i, d]) => window.ceSetImage(i, d)', [k, 'data:image/jpeg;base64,' + base64.b64encode(open(f, 'rb').read()).decode()]); ASSETS['images_ok'] += 1
         else:
@@ -337,7 +340,7 @@ def qa_report():
         if reel:
             add(ASSETS['music'] == 'yes', 'موسيقى خلفية: ' + ('موجودة' if ASSETS['music'] == 'yes' else 'مش موجودة'))
             w, k = ASSETS['images_wanted'], ASSETS['images_ok']
-            add(w == 0 or k == min(w, 4), f'الصور الحقيقية: {k} من {w} اتحمّلوا' if w else 'الصور الحقيقية: الريل ما طلبش صور')
+            add(w == 0 or k == min(w, IMG_MAX), f'الصور الحقيقية: {k} من {w} اتحمّلوا' if w else 'الصور الحقيقية: الريل ما طلبش صور')
         lay = LAYOUT or {}
         for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
             items = lay.get(key) or []

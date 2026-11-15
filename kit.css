@@ -26,6 +26,14 @@ body{--brand:#1D4ED8;--accent:#FFB703;--paper:#F5F2EC;--ink:#14161B;--hl:var(--b
 .k-bg{position:absolute;inset:0;background-size:cover;background-position:center top;animation:k-ken var(--dv,var(--d,3s)) linear var(--s,0s) both}
 .k-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42) 0%,rgba(0,0,0,.06) 22%,rgba(0,0,0,.1) 48%,rgba(0,0,0,.72) 66%,rgba(0,0,0,.9) 100%)}
 @keyframes k-ken{from{transform:scale(1.12)}to{transform:scale(1)}}
+/* ---------- style 2 "رسم": a drawn story, one illustration per line, calm camera ---------- */
+.draw .k-bg::after{background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,rgba(0,0,0,0) 16%,rgba(0,0,0,0) 52%,rgba(0,0,0,.78) 72%,rgba(0,0,0,.94) 100%)}
+.draw .scene:nth-of-type(3n+2) .k-bg{animation-name:k-pan}
+.draw .scene:nth-of-type(3n) .k-bg{animation-name:k-zin}
+@keyframes k-pan{from{transform:scale(1.12) translateX(-3.5%)}to{transform:scale(1.12) translateX(3.5%)}}
+@keyframes k-zin{from{transform:scale(1)}to{transform:scale(1.13)}}
+.draw .scene.t-photo .k-cap{top:1370px;height:400px;font-size:92px;text-shadow:0 4px 22px rgba(0,0,0,.7)}
+.draw .scene.t-photo .k-logo{text-shadow:0 2px 12px rgba(0,0,0,.6)}
 /* keep the person visible: the visual sits low on photo scenes */
 .scene.t-photo:not(.hook) .k-stage{top:700px;height:480px}
 .t-photo .k-card,.t-photo .k-list li{background:rgba(255,255,255,.94);color:var(--ink)}
