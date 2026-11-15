@@ -243,7 +243,7 @@ with sync_playwright() as p:
     for k, u in enumerate(urls):
         f = ce_img.fetch_image(u['prompt'], u['w'], u['h'], u['seed']) if k < IMG_MAX else None
         if f:
-            L = ce_img.make_layers(f) if STYLE == 'draw' else None
+            L = ce_img.make_layers(f) if (STYLE == 'draw' and os.environ.get('CE_DEPTH')) else None  # depth warp is off: it distorted the drawings
             if L: ASSETS['deep'] = ASSETS.get('deep', 0) + 1
             pg.evaluate('([i, d, g]) => window.ceSetImage(i, d, g)', [k, ce_img.data_uri(L[0] if L else f), ce_img.data_uri(L[1]) if L else None]); ASSETS['images_ok'] += 1
         else:

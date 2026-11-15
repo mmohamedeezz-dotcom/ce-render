@@ -34,7 +34,7 @@
   var DRAW_STYLE = 'Vintage 1960s comic book illustration, bold black ink outlines, flat warm colours in orange, teal and brown, aged paper texture, full bleed with no border and no frame. ';
   function imgSpec(e) {
     var draw = isDraw(), sq = !e.classList.contains('scene');
-    var p = draw ? DRAW_STYLE + e.dataset.img + '. No text, no letters, no speech bubbles.'
+    var p = draw ? DRAW_STYLE + e.dataset.img + '. No text, no letters, no numbers, no dates, no signs, no labels, no speech bubbles.'
                  : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
     var w = 1080, h = sq ? 1080 : 2048, sd = seed(e.dataset.img);
     return { prompt: p, w: w, h: h, seed: sd, url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=' + w + '&height=' + h + '&model=flux&nologo=true&seed=' + sd };
