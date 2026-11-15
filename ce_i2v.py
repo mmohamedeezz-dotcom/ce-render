@@ -16,7 +16,9 @@ def portrait(src, dest, w=576, h=1024):
 def animate(jpg, motion, dest, seconds=3.0, steps=4):
     """returns dest (mp4) or raises"""
     from gradio_client import Client, handle_file
-    c = Client(SPACE, hf_token=(os.environ.get('HF_TOKEN') or None), verbose=False)
+    tok = os.environ.get('HF_TOKEN') or None
+    try: c = Client(SPACE, token=tok, verbose=False)
+    except TypeError: c = Client(SPACE, hf_token=tok, verbose=False)
     res = c.predict(input_image=handle_file(jpg), prompt=motion + ' ' + KEEP, steps=steps,
                     duration_seconds=seconds, api_name='/generate_video')
     v = res[0] if isinstance(res, (list, tuple)) else res
@@ -32,7 +34,8 @@ if __name__ == '__main__':  # python ce_i2v.py selftest out
     log = []
     try:
         from gradio_client import Client
-        log.append('API: ' + json.dumps(Client(SPACE, verbose=False).view_api(return_format='dict'), ensure_ascii=False)[:3000])
+        d = Client(SPACE, verbose=False).view_api(return_format='dict')
+        log.append('API: ' + json.dumps({k: [(p.get('parameter_name'), str(p.get('parameter_default'))[:30]) for p in v.get('parameters', [])] for k, v in d.get('named_endpoints', {}).items()}, ensure_ascii=False)[:1500])
     except Exception as e:
         log.append('view_api failed: ' + str(e)[:300])
     S = ce_img_style = 'Vintage 1960s comic book illustration, bold black ink outlines, flat warm colours in orange, teal and brown, aged paper texture, full bleed with no border and no frame. '
