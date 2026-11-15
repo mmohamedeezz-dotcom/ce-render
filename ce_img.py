@@ -32,7 +32,7 @@ def _cloudflare(prompt, w, h, seed, dest):
     url = f'https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell'
     hd = {'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json'}
     r = None
-    for body in ({'prompt': prompt[:2000], 'steps': 4, 'seed': int(seed)}, {'prompt': prompt[:2000], 'steps': 4}, {'prompt': prompt[:2000]}):
+    for body in ({'prompt': prompt[:2000], 'steps': 4}, {'prompt': prompt[:2000]}):  # this model rejects 'seed'
         try:
             r = json.loads(_get(url, json.dumps(body).encode(), hd)); break
         except urllib.error.HTTPError as e:
