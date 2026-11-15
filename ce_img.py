@@ -2,6 +2,7 @@
 Providers, in order: Cloudflare Workers AI (if CF_ACCOUNT_ID + CF_API_TOKEN are set), the public FLUX.1 [schnell]
 demo Space on Hugging Face (no key), then Pollinations (no key, weakest).
 """
+import urllib.error
 import base64, hashlib, json, os, subprocess, time, urllib.parse, urllib.request
 
 CACHE = os.environ.get('CE_CACHE', 'cache'); os.makedirs(CACHE, exist_ok=True)
@@ -29,8 +30,16 @@ def _cloudflare(prompt, w, h, seed, dest):
     acct, tok = os.environ.get('CF_ACCOUNT_ID', '').strip(), os.environ.get('CF_API_TOKEN', '').strip()
     if not (acct and tok): return False
     url = f'https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell'
-    r = json.loads(_get(url, json.dumps({'prompt': prompt[:2000], 'steps': 4, 'seed': seed}).encode(),
-                        {'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json'}))
+    hd = {'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json'}
+    r = None
+    for body in ({'prompt': prompt[:2000], 'steps': 4, 'seed': int(seed)}, {'prompt': prompt[:2000], 'steps': 4}, {'prompt': prompt[:2000]}):
+        try:
+            r = json.loads(_get(url, json.dumps(body).encode(), hd)); break
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode('utf8', 'replace')[:300]
+            print(f'cloudflare {e.code} with {sorted(body)}:', msg)
+            if e.code != 400: raise RuntimeError(f'HTTP {e.code}: {msg[:120]}')
+    if r is None: raise RuntimeError('cloudflare rejected every request shape')
     img = (r.get('result') or {}).get('image')
     return bool(img) and _to_jpg(base64.b64decode(img), dest)
 
@@ -120,3 +129,13 @@ def make_layers(jpg):
 def data_uri(path):
     mime = 'image/png' if path.endswith('.png') else 'image/jpeg'
     return f'data:{mime};base64,' + base64.b64encode(open(path, 'rb').read()).decode()
+
+
+if __name__ == '__main__':  # python ce_img.py selftest -> one Cloudflare image, prints what happened
+    import sys
+    p = 'Vintage 1960s comic book illustration, bold black ink outlines, flat warm colours in orange, teal and brown, aged paper texture, full bleed with no border and no frame. A man holding a coffee mug in a quiet kitchen at dawn.'
+    try:
+        ok = _cloudflare(p, 1080, 2048, 4242, 'selftest.jpg')
+        print('cloudflare selftest:', 'OK ' + str(os.path.getsize('selftest.jpg')) + ' bytes' if ok else 'not configured')
+    except Exception as e:
+        print('cloudflare selftest FAILED:', str(e)[:300]); sys.exit(1)
