@@ -1,0 +1,52 @@
+name: styletest
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: test spec file in the repo root
+        default: test_draw.json
+  push:
+    paths: ['.github/workflows/styletest.yml']
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install -q playwright onnxruntime opencv-python-headless numpy gradio_client
+          python -m playwright install --with-deps chromium
+      - uses: actions/cache@v4
+        with:
+          path: cache
+          key: ce-cache-${{ github.run_id }}
+          restore-keys: ce-cache-
+      - name: Render
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPEC: ${{ github.event.inputs.spec || 'test_draw.json' }}
+        run: python render.py "$SPEC" out
+      - name: Publish
+        if: always()
+        run: |
+          git config user.name ce-render
+          git config user.email ce-render@users.noreply.github.com
+          git checkout -q --orphan st-${{ github.run_id }}
+          git rm -rfq --cached . >/dev/null 2>&1 || true
+          mkdir -p t
+          cp out/* t/
+          git add -f t
+          git commit -qm styletest
+          git push -q origin st-${{ github.run_id }}
