@@ -39,30 +39,12 @@ def post(path, body):
         raise RuntimeError('HTTP %s: %s' % (e.code, e.read().decode('utf8','replace')[:300]))
 
 CACHE = os.environ.get('CE_CACHE', 'cache'); os.makedirs(CACHE, exist_ok=True)
+import ce_img
 ASSETS = {'images_wanted': 0, 'images_ok': 0, 'music': ''}
-
-def fetch_image(url):
-    """a generated photo for a scene (free service, slow and rate limited); cached so a prompt is paid for once."""
-    f = os.path.join(CACHE, hashlib.sha1(url.encode()).hexdigest() + '.jpg')
-    if os.path.exists(f) and os.path.getsize(f) > 20000: return f
-    if os.environ.get('CE_MOCK'):
-        ff('-f', 'lavfi', '-i', 'gradients=s=1080x2048:c0=0x5b3a1e:c1=0xd9a441:x0=0:y0=0:x1=1080:y1=2048', '-frames:v', '1', '-q:v', '2', f); return f
-    for attempt in range(5):
-        try:
-            u = url if attempt < 3 else url.replace('model=flux', 'model=turbo')  # second engine if the first keeps refusing
-            req = urllib.request.Request(u, headers={'User-Agent': 'ce-render/1.0'})
-            data = urllib.request.urlopen(req, timeout=150).read()
-            if data[:2] == b'\xff\xd8' and len(data) > 20000:
-                open(f, 'wb').write(data); time.sleep(16); return f
-            print(f'image try {attempt + 1}: not a usable picture ({len(data)} bytes)')
-        except Exception as e:
-            print(f'image try {attempt + 1} failed:', str(e)[:120])
-        time.sleep(20 + 10 * attempt)
-    return None
 
 def brand_music(brand, prompt, dest):
     """one instrumental bed per brand, generated once and reused on every reel of that brand."""
-    f = os.path.join(CACHE, 'music_' + hashlib.sha1(brand.encode()).hexdigest()[:16] + '.mp3')
+    f = os.path.join(CACHE, 'music_' + hashlib.sha1((brand + '|' + str(globals().get('STYLE', ''))).encode()).hexdigest()[:16] + '.mp3')
     if not (os.path.exists(f) and os.path.getsize(f) > 50000):
         if not KEY: return None
         p = (prompt or 'warm modern instrumental background music for a short social ad, light drums, soft bass, positive, steady groove') + '. Instrumental only, no vocals, no speech.'
@@ -259,11 +241,14 @@ with sync_playwright() as p:
     IMG_MAX = 12 if STYLE == 'draw' else 4
     ASSETS['images_wanted'] = len(urls)
     for k, u in enumerate(urls):
-        f = fetch_image(u) if k < IMG_MAX else None
+        f = ce_img.fetch_image(u['prompt'], u['w'], u['h'], u['seed']) if k < IMG_MAX else None
         if f:
-            pg.evaluate('([i, d]) => window.ceSetImage(i, d)', [k, 'data:image/jpeg;base64,' + base64.b64encode(open(f, 'rb').read()).decode()]); ASSETS['images_ok'] += 1
+            L = ce_img.make_layers(f) if STYLE == 'draw' else None
+            if L: ASSETS['deep'] = ASSETS.get('deep', 0) + 1
+            pg.evaluate('([i, d, g]) => window.ceSetImage(i, d, g)', [k, ce_img.data_uri(L[0] if L else f), ce_img.data_uri(L[1]) if L else None]); ASSETS['images_ok'] += 1
         else:
             pg.evaluate('i => window.ceSetImage(i, null)', k)
+    ASSETS['providers'] = dict(ce_img.USED)
     BRAND = pg.evaluate("document.body.dataset.brand || ''"); MUSIC_PROMPT = pg.evaluate("document.body.dataset.music || ''")
     pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
     pg.evaluate("window.ceFit(); ['ce-kit-js','ce-kit-flag'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); })")
@@ -340,7 +325,9 @@ def qa_report():
         if reel:
             add(ASSETS['music'] == 'yes', 'موسيقى خلفية: ' + ('موجودة' if ASSETS['music'] == 'yes' else 'مش موجودة'))
             w, k = ASSETS['images_wanted'], ASSETS['images_ok']
-            add(w == 0 or k == min(w, IMG_MAX), f'الصور الحقيقية: {k} من {w} اتحمّلوا' if w else 'الصور الحقيقية: الريل ما طلبش صور')
+            src = '، '.join(f'{n}: {c}' for n, c in (ASSETS.get('providers') or {}).items())
+            weak = (ASSETS.get('providers') or {}).get('pollinations', 0)
+            add((w == 0 or k == min(w, IMG_MAX)) and not weak, (f'الرسومات: {k} من {w} اتولدوا ({src})' + (f'، منهم {weak} من المولّد الضعيف' if weak else '') + (f'، حركة عمق في {ASSETS.get("deep", 0)}' if STYLE == 'draw' else '')) if w else 'الصور: الريل ما طلبش صور')
         lay = LAYOUT or {}
         for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
             items = lay.get(key) or []

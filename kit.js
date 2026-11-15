@@ -15,7 +15,7 @@
 
   // caption lines: 2-3 words each, sizes balanced, never a lonely word at the end
   function split(w, hook) {
-    var maxW = hook ? 2 : 3, maxC = hook ? 12 : 17, n = w.length, out = [];
+    var dr = isDraw(), maxW = dr ? 4 : hook ? 2 : 3, maxC = dr ? 24 : hook ? 12 : 17, n = w.length, out = [];
     var len = function (t) { return t.replace(/[*\u064B-\u0652]/g, '').length; };
     for (var k = Math.ceil(n / maxW); k <= n; k++) {
       out = []; var base = Math.floor(n / k), extra = n % k, p = 0, ok = true;
@@ -31,17 +31,23 @@
   function seed(str) { var h = 7; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
   function imgs() { return [].slice.call(document.querySelectorAll('.scene[data-img], .k-photo[data-img]')); }
   function isDraw() { return document.body.dataset.style === 'draw'; }
-  function imgUrl(e) {
-    var draw = isDraw(), cast = document.body.dataset.cast || '';
-    var p = draw
-      ? 'Flat 2D cartoon illustration, thick black ink outlines, flat colours, simple shapes, hand-drawn storybook comic style, warm muted palette, not a photo, not 3D. Scene: ' + e.dataset.img + '.' + (cast ? ' Main character: ' + cast + '.' : '') + ' Wide shot showing the action and the place, no text, no letters, no speech bubbles'
-      : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
-    var sq = !e.classList.contains('scene');
-    return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=1080&height=' + (sq ? 1080 : 2048) + '&model=flux&nologo=true&seed=' + (draw ? seed(cast || 'draw') : seed(e.dataset.img));
+  var DRAW_STYLE = 'Vintage 1960s comic book illustration, bold black ink outlines, flat warm colours in orange, teal and brown, aged paper texture, full bleed with no border and no frame. ';
+  function imgSpec(e) {
+    var draw = isDraw(), sq = !e.classList.contains('scene');
+    var p = draw ? DRAW_STYLE + e.dataset.img + '. No text, no letters, no speech bubbles.'
+                 : e.dataset.img + ', photorealistic photo, natural light, 50mm lens, shallow depth of field, no text, no letters, no watermark';
+    var w = 1080, h = sq ? 1080 : 2048, sd = seed(e.dataset.img);
+    return { prompt: p, w: w, h: h, seed: sd, url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=' + w + '&height=' + h + '&model=flux&nologo=true&seed=' + sd };
   }
-  function setImg(i, uri) {
+  function setImg(i, uri, fg) {
     var e = imgs()[i]; if (!e) return; var sc = e.classList.contains('scene'), t = sc ? e.querySelector('.k-bg') : e;
-    if (uri && i < (isDraw() ? 12 : 4)) { t.style.backgroundImage = 'url("' + uri + '")'; e.dataset.imgOk = '1'; return; }
+    if (uri && i < (isDraw() ? 12 : 4)) {
+      if (fg && sc) {  // two layers: the far one and the near one move against each other
+        t.innerHTML = ''; ['k-far', 'k-near'].forEach(function (c, k) { var d = document.createElement('div'); d.className = c; d.style.backgroundImage = 'url("' + (k ? fg : uri) + '")'; t.appendChild(d); });
+        t.classList.add('k-deep');
+      } else t.style.backgroundImage = 'url("' + uri + '")';
+      e.dataset.imgOk = '1'; return;
+    }
     if (sc) { if (t) t.remove(); e.classList.remove('t-photo'); e.classList.add('t-dark'); } else e.style.display = 'none';
     e.dataset.imgOk = '0';
   }
@@ -63,7 +69,7 @@
     S.forEach(function (s, i) {
       if (s.dataset.img && !s.querySelector('.k-bg')) { var bg = document.createElement('div'); bg.className = 'k-bg'; s.insertBefore(bg, s.firstChild); s.classList.remove('t-light', 't-brand', 't-dark'); s.classList.add('t-photo'); }
       if (!/\bt-(light|brand|dark|photo)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
-      if (i && !s.dataset.tr) s.dataset.tr = TR[(i - 1) % 3];
+      if (i && !s.dataset.tr) s.dataset.tr = isDraw() ? 'dip' : TR[(i - 1) % 3];
       if (brand && !s.querySelector('.k-logo')) { var l = document.createElement('div'); l.className = 'k-logo'; l.textContent = brand; s.insertBefore(l, s.firstChild); }
       var w = toks(s);
       // caption: every spoken word on screen, in short chunks, each word landing on its own time
@@ -173,7 +179,7 @@
 
   window.ceApply = function (T) { build(); apply(T || estimate()); };
   window.ceFit = fit; window.ceQA = qa;
-  window.ceImages = function () { return imgs().map(imgUrl); }; window.ceSetImage = setImg;
-  function boot() { if (window.CE_RENDER) return; window.ceApply(); imgs().forEach(function (e, i) { setImg(i, imgUrl(e)); }); (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit); }
+  window.ceImages = function () { return imgs().map(imgSpec); }; window.ceSetImage = setImg;
+  function boot() { if (window.CE_RENDER) return; window.ceApply(); imgs().forEach(function (e, i) { setImg(i, imgSpec(e).url); }); (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
