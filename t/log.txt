@@ -1,0 +1,4 @@
+API: {"/generate_video": [["input_image", "None"], ["prompt", "make this image come alive, ci"], ["steps", "6"], ["negative_prompt", "色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, "], ["duration_seconds", "3.5"], ["guidance_scale", "1"], ["guidance_scale_2", "1"], ["seed", "42"], ["randomize_seed", "True"]]}
+man: OK in 29s
+clock: OK in 24s
+beans: OK in 26s
