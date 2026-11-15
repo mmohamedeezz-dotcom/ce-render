@@ -1,8 +1,6 @@
 name: i2vtest
 on:
   workflow_dispatch:
-  push:
-    paths: ['ce_i2v.py', '.github/workflows/i2vtest.yml']
 permissions:
   contents: write
 jobs:
@@ -37,3 +35,4 @@ jobs:
           git add -f t
           git commit -qm i2vtest
           git push -q origin i2v-${{ github.run_id }}
+
