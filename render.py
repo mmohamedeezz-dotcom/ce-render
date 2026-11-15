@@ -330,7 +330,7 @@ def qa_report():
             w, k = ASSETS['images_wanted'], ASSETS['images_ok']
             src = '، '.join(f'{n}: {c}' for n, c in (ASSETS.get('providers') or {}).items())
             weak = (ASSETS.get('providers') or {}).get('pollinations', 0)
-            add((w == 0 or k == min(w, IMG_MAX)) and not weak, (f'الرسومات: {k} من {w} اتولدوا ({src})' + (f'، منهم {weak} من المولّد الضعيف' if weak else '') + (f'، حركة حقيقية في {ASSETS.get("clips", 0)}' + (' (حصة التحريك خلصت والباقي ثابت)' if ce_i2v.STOP['why'] else '') if STYLE == 'draw' else '')) if w else 'الصور: الريل ما طلبش صور')
+            add((w == 0 or k == min(w, IMG_MAX)) and not weak and (STYLE != 'draw' or bool(os.environ.get('CE_MOCK')) or ASSETS.get('clips', 0) >= k), (f'الرسومات: {k} من {w} اتولدوا ({src})' + (f'، منهم {weak} من المولّد الضعيف' if weak else '') + (f'، حركة حقيقية في {ASSETS.get("clips", 0)}' + (' (حصة التحريك خلصت والباقي ثابت بزووم بس: الريل ده مش بمستوى الستايل المعتمد)' if ce_i2v.STOP['why'] else '') if STYLE == 'draw' else '')) if w else 'الصور: الريل ما طلبش صور')
         lay = LAYOUT or {}
         for key, name in (('off_frame', 'عناصر خارجة بره الفريم'), ('overflow', 'نص مقصوص جوه مكوّن'), ('overlap', 'الفيجوال داخل على الكابشن')):
             items = lay.get(key) or []
