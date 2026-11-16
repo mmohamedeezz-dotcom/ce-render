@@ -125,6 +125,15 @@
   // keep every visual inside its zone, and never show a broken icon name as text
   function fit() {
     [].forEach.call(document.querySelectorAll('.k-ico'), function (e) { if (e.scrollWidth > e.clientWidth + 4) e.textContent = 'star'; });
+    // text that does not fit its card: shrink the value first, then the text itself, and stack the value under the title as a last resort
+    [].forEach.call(document.querySelectorAll('.k-row'), function (r) {
+      var em = r.querySelector('em'); if (!em) return; var n = 0;
+      while (em.offsetWidth > r.clientWidth * 0.4 && n++ < 8) em.style.fontSize = parseFloat(getComputedStyle(em).fontSize) * 0.9 + 'px';
+      if (em.offsetWidth > r.clientWidth * 0.4) { r.style.flexWrap = 'wrap'; em.style.flexBasis = '100%'; em.style.whiteSpace = 'normal'; }
+    });
+    [].forEach.call(document.querySelectorAll('.k-card b, .k-card small, .k-card em, .k-list li, .k-chat p, .k-cta, .k-tag, .k-stat small'), function (e) {
+      var n = 0; while (e.scrollWidth > e.clientWidth + 3 && n++ < 8) e.style.fontSize = parseFloat(getComputedStyle(e).fontSize) * 0.93 + 'px';
+    });
     [].forEach.call(document.querySelectorAll('.k-stage'), function (st) {
       var f = st.querySelector(':scope > .k-fit'); if (!f) return;
       var wid = 0; [].forEach.call(f.children, function (c) { wid = Math.max(wid, c.offsetWidth); });
