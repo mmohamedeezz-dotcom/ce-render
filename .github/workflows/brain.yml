@@ -33,6 +33,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: |
+          curl -sSLf https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C /tmp
+          echo /tmp/ffmpeg-master-latest-linux64-gpl/bin >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v4
         with: {name: audio}
       - name: transcribe + shortlist
@@ -69,6 +73,10 @@ jobs:
       ids: ${{ steps.j.outputs.ids }}
     steps:
       - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: |
+          curl -sSLf https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C /tmp
+          echo /tmp/ffmpeg-master-latest-linux64-gpl/bin >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v4
         with: {name: brain, path: brain}
       - uses: actions/download-artifact@v4
@@ -93,6 +101,10 @@ jobs:
         id: ${{ fromJson(needs.judge.outputs.ids) }}
     steps:
       - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: |
+          curl -sSLf https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C /tmp
+          echo /tmp/ffmpeg-master-latest-linux64-gpl/bin >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v4
         with: {name: picks, path: picks}
       - uses: actions/download-artifact@v4
