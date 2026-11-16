@@ -20,33 +20,10 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
-      - name: tools
-        shell: powershell
-        run: |
-          $ProgressPreference = 'SilentlyContinue'
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          $t = "$env:USERPROFILE\ce-tools"
-          New-Item -ItemType Directory -Force $t | Out-Null
-          if (!(Test-Path "$t\yt-dlp.exe")) { Invoke-WebRequest https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -OutFile "$t\yt-dlp.exe" }
-          if (!(Test-Path "$t\ffmpeg.exe")) {
-            Invoke-WebRequest https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip -OutFile "$t\ff.zip"
-            Expand-Archive "$t\ff.zip" "$t\ff" -Force
-            Copy-Item "$t\ff\*\bin\ff*.exe" $t
-            Remove-Item "$t\ff.zip"
-          }
-          if (!(Test-Path "$t\deno.exe")) {
-            Invoke-WebRequest https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip -OutFile "$t\deno.zip"
-            Expand-Archive "$t\deno.zip" $t -Force
-            Remove-Item "$t\deno.zip"
-          }
-          & "$t\yt-dlp.exe" -U
-          $t | Out-File -Append $env:GITHUB_PATH -Encoding utf8
+      - uses: actions/checkout@v4
       - name: audio only
-        shell: powershell
-        run: |
-          Remove-Item -Recurse -Force audio.*, clips, brain -ErrorAction SilentlyContinue
-          yt-dlp -f "ba/b" -x --audio-format mp3 --audio-quality 64K --postprocessor-args "ffmpeg:-ac 1 -ar 16000" --no-playlist -o "audio.%(ext)s" "$env:URL"
-          if (!(Test-Path audio.mp3)) { throw "audio download failed" }
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File fetch.ps1 audio
       - uses: actions/upload-artifact@v4
         with: {name: audio, path: audio.mp3, retention-days: 1}
 
@@ -75,29 +52,12 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 20
     steps:
-      - shell: powershell
-        run: |
-          Remove-Item -Recurse -Force clips, brain -ErrorAction SilentlyContinue
-          "$env:USERPROFILE\ce-tools" | Out-File -Append $env:GITHUB_PATH -Encoding utf8
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with: {name: brain, path: brain}
       - name: download only the shortlisted parts
-        shell: powershell
-        run: |
-          $c = Get-Content brain\cands.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          New-Item -ItemType Directory -Force clips | Out-Null
-          $inv = [cultureinfo]::InvariantCulture
-          $procs = @()
-          foreach ($x in $c) {
-            $sec = [string]::Format($inv, "*{0}-{1}", $x.start, $x.end)
-            $a = @('-f', '"bv*[height<=1080][vcodec^=avc1]+ba/bv*[height<=1080]+ba/b"', '--download-sections', "`"$sec`"",
-                   '--force-keyframes-at-cuts', '--merge-output-format', 'mp4', '--no-playlist', '-o', "`"clips/c$($x.id).%(ext)s`"", "`"$env:URL`"")
-            $procs += Start-Process -FilePath yt-dlp.exe -ArgumentList $a -NoNewWindow -PassThru
-            if ($procs.Count % 4 -eq 0) { $procs | Wait-Process -ErrorAction SilentlyContinue }
-          }
-          $procs | Wait-Process -ErrorAction SilentlyContinue
-          Get-ChildItem clips | Format-Table Name, Length
-          if (!(Get-ChildItem clips\*.mp4)) { throw "no clips downloaded" }
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File fetch.ps1 clips
       - uses: actions/upload-artifact@v4
         with: {name: clips, path: clips/*.mp4, retention-days: 1}
 
