@@ -78,7 +78,7 @@ def transcribe(audio, out):
 
 
 # ----------------------------------------------------------------------------- claude
-def claude(system, content, max_tokens=8000):
+def claude(system, content, max_tokens=32000):
     import requests
     for attempt in range(3):
         r = requests.post('https://api.anthropic.com/v1/messages',
@@ -87,7 +87,12 @@ def claude(system, content, max_tokens=8000):
                           json={'model': MODEL, 'max_tokens': max_tokens, 'system': system,
                                 'messages': [{'role': 'user', 'content': content}]}, timeout=600)
         if r.status_code == 200:
-            return ''.join(b.get('text', '') for b in r.json()['content'])
+            j = r.json()
+            text = ''.join(b.get('text', '') for b in j['content'] if b.get('type') == 'text')
+            print('claude:', j.get('stop_reason'), j.get('usage'), [b.get('type') for b in j['content']], file=sys.stderr)
+            if text.strip():
+                return text
+            time.sleep(3); continue
         print('claude', r.status_code, r.text[:300], file=sys.stderr)
         if r.status_code in (429, 500, 529):
             time.sleep(15 * (attempt + 1)); continue
@@ -126,7 +131,7 @@ def pick(tr_path, out):
 رجّع JSON array بس، من غير أي كلام قبله أو بعده. كل عنصر:
 {{"start": ثواني بداية أول سطر في المقطع, "end": ثواني نهاية آخر جملة, "hook": "عنوان يتكتب فوق الفيديو، 3 لـ6 كلمات بالعامية المصرية، يثير الفضول من غير ما يحرق القفلة", "first": "أول 5 كلمات بالظبط زي ما اتقالت", "last": "آخر 5 كلمات بالظبط", "why": "سبب الاختيار في جملة", "score": من 1 لـ100}}
 الوقت بالثواني من أول الحلقة (مثال: [12:30.0] = 750). start و end لازم يكونوا على حدود جمل كاملة."""
-    cands = jparse(claude(system, f'مدة الحلقة: {mmss(tr["duration"])}\n\n{lines}', 12000))
+    cands = jparse(claude(system, f'مدة الحلقة: {mmss(tr["duration"])}\n\n{lines}'))
     words = tr['words']
     good = []
     for c in cands:
@@ -217,7 +222,7 @@ def judge(cands_path, clips_dir, out):
 ارفض أي مقطع الصورة فيه مش نافعة ريل: إعلان أو شاشة راعي، لقطة واسعة مفيش فيها متكلم واضح معظم الوقت، تتر أو شاشة سودا.
 حسّن الهوك لو محتاج: 3 لـ6 كلمات بالعامية المصرية، من غير علامات تنصيص ومن غير إيموجي.
 رجّع JSON array بس: [{{"id": رقم المقطع, "hook": "الهوك النهائي", "note": "ملاحظة في جملة عن الصورة"}}]"""
-    picks = jparse(claude(system, content, 4000))
+    picks = jparse(claude(system, content))
     by = {c['id']: c for c in have}
     final = []
     for p in picks:
