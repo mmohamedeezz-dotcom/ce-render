@@ -1,0 +1,12 @@
+[youtube] Extracting URL: https://www.youtube.com/watch?v=mZneBMJqvKc
+[youtube] mZneBMJqvKc: Downloading webpage
+WARNING: [youtube] mZneBMJqvKc: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] mZneBMJqvKc: Downloading initial data API JSON
+WARNING: [youtube] mZneBMJqvKc: Unable to download API page: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)
+WARNING: [youtube] No supported JavaScript runtime could be found. Only deno is enabled by default; to use another runtime add  --js-runtimes RUNTIME[:PATH]  to your command/config. YouTube extraction without a JS runtime has been deprecated, and some formats may be missing. See  https://github.com/yt-dlp/yt-dlp/wiki/EJS  for details on installing one
+[youtube] mZneBMJqvKc: Downloading visionos player API JSON
+WARNING: [youtube] mZneBMJqvKc: Unable to download API page: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)
+ERROR: [youtube] mZneBMJqvKc: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+exit 1
+ls: cannot access 'src.mp4': No such file or directory
+src.mp4: No such file or directory
