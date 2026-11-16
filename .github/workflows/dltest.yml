@@ -1,0 +1,47 @@
+name: dltest
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: video link
+        default: https://www.youtube.com/watch?v=mZneBMJqvKc
+  push:
+    paths: ['.github/workflows/dltest.yml']
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download
+        env:
+          URL: ${{ github.event.inputs.url || 'https://www.youtube.com/watch?v=mZneBMJqvKc' }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install -q -U yt-dlp
+          mkdir -p out
+          set +e
+          yt-dlp --no-playlist -f 'bv*[height<=1080]+ba/b[height<=1080]/b' --merge-output-format mp4 -o src.mp4 "$URL" > out/dl.txt 2>&1
+          echo "exit $?" >> out/dl.txt
+          ls -la src.mp4 >> out/dl.txt 2>&1
+          ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,r_frame_rate -of default=nw=1 src.mp4 >> out/dl.txt 2>&1
+          tail -c 3000 out/dl.txt > out/log.txt
+          rm -f out/dl.txt
+      - name: Publish log
+        if: always()
+        run: |
+          git config user.name ce-render
+          git config user.email ce-render@users.noreply.github.com
+          git checkout -q --orphan dl-${{ github.run_id }}
+          git rm -rfq --cached . >/dev/null 2>&1 || true
+          mkdir -p t
+          cp out/log.txt t/
+          git add -f t/log.txt
+          git commit -qm dltest
+          git push -q origin dl-${{ github.run_id }}
