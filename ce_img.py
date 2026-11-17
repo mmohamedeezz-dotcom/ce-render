@@ -26,6 +26,22 @@ def _to_jpg(raw, dest):
     return os.path.getsize(dest) > 20000
 
 
+def _openai(prompt, w, h, seed, dest):
+    """paid, best quality: only for designs (CE_PRO) and only when the key is set."""
+    key = os.environ.get('OPENAI_API_KEY', '').strip()
+    if not (key and os.environ.get('CE_PRO')): return False
+    size = '1024x1536' if h > w * 1.15 else ('1536x1024' if w > h * 1.15 else '1024x1024')
+    body = {'model': os.environ.get('CE_IMG_MODEL', 'gpt-image-2.6-sunburst'), 'prompt': prompt[:4000], 'n': 1, 'size': size, 'quality': os.environ.get('CE_IMG_QUALITY', 'high')}
+    try:
+        r = json.loads(_get('https://api.openai.com/v1/images/generations', json.dumps(body).encode(), {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'}, timeout=300))
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'HTTP {e.code}: ' + e.read().decode('utf8', 'replace')[:200])
+    d = (r.get('data') or [{}])[0]
+    if d.get('b64_json'): return _to_jpg(base64.b64decode(d['b64_json']), dest)
+    if d.get('url'): return _to_jpg(_get(d['url']), dest)
+    return False
+
+
 def _cloudflare(prompt, w, h, seed, dest):
     acct, tok = os.environ.get('CF_ACCOUNT_ID', '').strip(), os.environ.get('CF_API_TOKEN', '').strip()
     if not (acct and tok): return False
@@ -68,12 +84,12 @@ def fetch_image(prompt, w=1080, h=2048, seed=1):
         L = os.environ['CE_TESTIMGS'].split(','); USED['test'] = USED.get('test', 0) + 1; return L[(USED['test'] - 1) % len(L)]
     if os.environ.get('CE_MOCK'):
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'gradients=s=768x1344:c0=0x5b3a1e:c1=0xd9a441:x0=0:y0=0:x1=768:y1=1344', '-frames:v', '1', '-q:v', '2', f], check=True); return f
-    for name, fn, tries in (('cloudflare', _cloudflare, 2), ('flux space', _hf_space, 3), ('pollinations', _pollinations, 2)):
+    for name, fn, tries in (('openai', _openai, 2), ('cloudflare', _cloudflare, 2), ('flux space', _hf_space, 3), ('pollinations', _pollinations, 2)):
         for k in range(tries):
             try:
                 if fn(prompt, w, h, seed, f):
-                    USED[name] = USED.get(name, 0) + 1; return f
-                if name == 'cloudflare': break  # not configured
+                    USED[name] = USED.get(name, 0) + 1; print('image by', name); return f
+                if name in ('cloudflare', 'openai'): break  # not configured
             except Exception as e:
                 print(f'image [{name}] try {k + 1} failed:', str(e)[:160]); time.sleep(6 + 8 * k)
     return None
