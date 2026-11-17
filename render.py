@@ -16,6 +16,8 @@ out = sys.argv[2]; os.makedirs(out, exist_ok=True)
 code = ''.join(c for c in str(spec.get('code') or 'asset') if c.isalnum() or c in '-_') or 'asset'
 reel = spec.get('kind') == 'reel'
 W, H = 1080, (1920 if reel else 1350)
+if not reel and int(spec.get('w') or 0) >= 200 and int(spec.get('h') or 0) >= 200:
+    W, H = min(int(spec['w']), 4000), min(int(spec['h']), 4000)  # designs come in every platform size
 fps = 60 if reel else int(spec.get('fps') or 30)  # 60 for smooth motion
 KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 voice = spec.get('voice_id') or os.environ.get('ELEVENLABS_VOICE_ID', '')
@@ -198,6 +200,21 @@ with sync_playwright() as p:
     local_fonts(pg)
     pg.set_content(html, wait_until='networkidle'); pg.evaluate('document.fonts.ready')
     if not reel:
+        # designs: real photos are generated for every <img data-img="english prompt"> that has no http src yet
+        try:
+            shots = pg.evaluate("() => [].slice.call(document.querySelectorAll('img[data-img]')).map((e, i) => { const r = e.getBoundingClientRect(); return { i: i, prompt: e.getAttribute('data-img') || '', w: Math.round(r.width), h: Math.round(r.height), has: /^https?:/.test(e.getAttribute('src') || '') }; })")
+        except Exception as e:
+            shots = []; print('img scan failed:', str(e)[:160])
+        import shutil
+        for u in shots[:4]:
+            if u['has'] or not u['prompt'].strip(): continue
+            gw, gh = (768, 1344) if u['h'] > u['w'] * 1.15 else ((1344, 768) if u['w'] > u['h'] * 1.15 else (1024, 1024))
+            f = None
+            try: f = ce_img.fetch_image(u['prompt'], gw, gh, 1 + u['i'])
+            except Exception as e: print('image error:', str(e)[:160])
+            if not f: print('image failed', u['i']); continue
+            shutil.copy(f, f"{out}/{code}_img{u['i']}.jpg")
+            pg.evaluate('([i, d]) => new Promise(res => { const e = document.querySelectorAll("img[data-img]")[i]; e.onload = () => res(1); e.onerror = () => res(0); e.src = d; })', [u['i'], ce_img.data_uri(f)])
         pg.screenshot(path=f'{out}/{code}.png'); b.close(); print('png done'); sys.exit(0)
 
     STYLE = pg.evaluate("document.body.dataset.style || ''")
