@@ -190,6 +190,10 @@
       [].forEach.call(s.querySelectorAll('.k-card b, .k-card small, .k-card em, .k-list li, .k-chat p, .k-cta, .k-tag, .k-stat small'), function (e) {
         if (e.scrollWidth > e.clientWidth + 3) out.overflow.push((i + 1) + ': ' + e.textContent.trim().slice(0, 24));
       });
+      // text sitting on text inside the visual: measured on the ink boxes, so a letter that drops under its line is caught too
+      var leafs = [].filter.call(s.querySelectorAll('.k-fit *'), function (e) { return !e.classList.contains('k-ico') && [].some.call(e.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); }); });
+      var boxes = leafs.map(function (e) { var r = document.createRange(); r.selectNodeContents(e); var q = r.getBoundingClientRect(); return { t: e.textContent.trim().slice(0, 14), l: q.left, u: q.top, r: q.right, d: q.bottom }; }).filter(function (x) { return x.r - x.l > 2; });
+      for (var x = 0; x < boxes.length; x++) for (var y = x + 1; y < boxes.length; y++) { var A = boxes[x], B = boxes[y]; if (Math.min(A.r, B.r) - Math.max(A.l, B.l) > 6 && Math.min(A.d, B.d) - Math.max(A.u, B.u) > 6) out.overflow.push((i + 1) + ': ' + A.t + ' راكب على ' + B.t); }
       if (f && cap) { var a = f.getBoundingClientRect(), b = cap.getBoundingClientRect(); if (a.bottom > b.top + 6 && !s.classList.contains('end')) out.overlap.push(i + 1); }
     });
     return out;
