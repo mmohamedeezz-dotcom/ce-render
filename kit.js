@@ -2,7 +2,7 @@
    Renderer calls window.ceApply(T) with real voice timings; in a plain browser it runs on estimates. */
 (function () {
   var WORD = 0.36, GAP = 0.18, TAIL = 1.2, OV = 0.45;
-  var UNITS = '.k-fit > *:not(.k-list):not(.k-chat):not(.k-bars):not(.k-vs), .k-list > li, .k-chat > p, .k-bars > i, .k-vs > *, .k-card > .k-row';
+  var UNITS = '.k-fit > *:not(.k-list):not(.k-chat):not(.k-bars):not(.k-vs), .k-list > li, .k-chat > p, .k-bars > i, .k-vs > *, .k-card > .k-row:not(:first-child)';
   function scenes() { return [].slice.call(document.querySelectorAll('.scene')); }
   function toks(s) { return (s.dataset.vo || '').trim().split(/\s+/).filter(Boolean); }
 
@@ -92,6 +92,8 @@
         s.appendChild(cap);
       }
       [].forEach.call(s.querySelectorAll('.k-stage'), function (st) { if (st.querySelector(':scope > .k-fit')) return; var f = document.createElement('div'); f.className = 'k-fit'; while (st.firstChild) f.appendChild(st.firstChild); st.appendChild(f); });
+      // a card never shows up empty: its first row comes in with the card itself
+      [].forEach.call(s.querySelectorAll('.k-card > .k-row:first-child'), function (r) { r.removeAttribute('data-at'); r.removeAttribute('data-fx'); });
       // entrances: spread the visual's parts across the spoken line so something new lands all the time
       var u = [].slice.call(s.querySelectorAll(UNITS)).filter(function (e) { return !e.hasAttribute('data-at'); });
       var W = Math.max(1, w.length);
