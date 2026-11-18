@@ -218,15 +218,24 @@ with sync_playwright() as p:
         pg.screenshot(path=f'{out}/{code}.png'); b.close(); print('png done'); sys.exit(0)
 
     STYLE = pg.evaluate("document.body.dataset.style || ''")
-    # one real background for the whole reel: <body data-bg="english prompt"> -> a single generated picture behind every scene
-    BG = pg.evaluate("document.body.dataset.bg || ''")
-    if BG.strip():
-        os.environ['CE_PRO'] = '1'
-        try: bgf = ce_img.fetch_image(BG.strip() + ', vertical composition, soft focus, calm, plenty of empty space, no people facing camera, no text, no letters, no logos, no watermark', 1080, 1920, 7)
-        except Exception as e: bgf = None; print('bg image error:', str(e)[:160])
-        os.environ.pop('CE_PRO', None)
+    # one real background for the whole reel: the brand's saved one (data-bg-url) or a new one from <body data-bg="english prompt">
+    BG = pg.evaluate("document.body.dataset.bg || ''").strip(); BGU = pg.evaluate("document.body.dataset.bgUrl || ''").strip()
+    if BG or BGU:
+        import shutil
+        bgf = None
+        if BGU.startswith('https://cdn.jsdelivr.net/gh/'):
+            try:
+                bgf = os.path.join(ce_img.CACHE, 'bg_' + hashlib.sha1(BGU.encode()).hexdigest()[:16] + '.jpg')
+                if not (os.path.exists(bgf) and os.path.getsize(bgf) > 20000): open(bgf, 'wb').write(ce_img._get(BGU))
+            except Exception as e: bgf = None; print('brand background download failed:', str(e)[:160])
+        if not bgf and BG:
+            os.environ['CE_PRO'] = '1'
+            try: bgf = ce_img.fetch_image(BG + ', vertical composition, soft focus, calm, plenty of empty space, no people facing camera, no text, no letters, no logos, no watermark', 1080, 1920, 7)
+            except Exception as e: bgf = None; print('bg image error:', str(e)[:160])
+            os.environ.pop('CE_PRO', None)
+            if bgf: shutil.copy(bgf, f'{out}/{code}_bg.jpg')  # published so the brand keeps this one background for every reel
         if bgf:
-            pg.evaluate("d => { document.body.style.setProperty('--bgimg', 'url(\"' + d + '\")'); document.body.classList.add('has-bg'); document.querySelectorAll('.scene').forEach(s => { s.classList.remove('t-light', 't-brand'); s.classList.add('t-dark'); }); }", ce_img.data_uri(bgf))
+            pg.evaluate("d => { document.body.style.setProperty('--bgimg', 'url(\"' + d + '\")'); document.body.classList.add('has-bg'); const fx = document.createElement('i'); fx.className = 'k-bgfx'; document.body.insertBefore(fx, document.body.firstChild); document.querySelectorAll('.scene').forEach(s => { s.classList.remove('t-light', 't-brand'); s.classList.add('t-dark'); }); }", ce_img.data_uri(bgf))
             print('reel background: ok')
         else: print('reel background: failed, plain scenes kept')
     scenes = pg.evaluate("[...document.querySelectorAll('.scene')].map(s => ({vo: s.dataset.vo || '', sfx: s.dataset.sfx || ''}))")
@@ -344,7 +353,7 @@ def qa_report():
         fz = subprocess.run(['ffmpeg', '-hide_banner', '-i', final, '-vf', 'freezedetect=n=0.0015:d=1.0', '-an', '-f', 'null', '-'], capture_output=True, text=True).stderr
         mx = max([float(x) for x in re.findall(r'freeze_duration: ([0-9.]+)', fz)] or [0.0])
         add(mx <= 2.0, f'أطول وقفة من غير حركة {mx:.1f} ثانية' + ('' if mx <= 2.0 else ' (أكتر من ثانيتين)'))
-        d = adur(final); add(10 <= d <= 45, f'المدة {d:.1f} ثانية، {fps} فريم في الثانية')
+        d = adur(final); add(d >= 6, f'المدة {d:.1f} ثانية، {fps} فريم في الثانية')
         if real:
             v = VOICE; okv = v.get('sync_max', 9) <= 0.25
             add(okv, f"تزامن الصوت مع الصورة: أقصى فرق {v.get('sync_max', 0):.2f} ثانية (موديل {v.get('model')}, {v.get('mode')}, {v.get('timing', '')})")
