@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=block');
+@import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;900&display=block');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,700,1,0&display=block');
 /* CE motion kit v1 — 1080x1920 reel components. Theme with --brand / --accent / --paper / --ink on <body>. */
 @property --n{syntax:'<integer>';initial-value:0;inherits:false}
@@ -197,3 +198,36 @@ body.has-bg .scene.ce-last,body.has-bg .scene.ce-last[data-tr]{animation-name:ce
 .k-logo.k-logo-mid img{height:190px}
 .scene.end .k-logo.k-logo-mid{top:430px}
 .scene.end .k-logo.k-logo-mid img{height:240px}
+
+/* ---------- kit 2 (body[data-kit="2"]): the words lead, three flat colours, the colour flip is the cut. No background picture. ---------- */
+body[data-kit="2"]{--paper:#F1EEE8;--ink:#111214;--hue:var(--accent);font-family:Alexandria,Tajawal,system-ui,sans-serif;background:var(--ink)}
+body[data-kit="2"] .scene::before,body[data-kit="2"] .scene::after{display:none}
+body[data-kit="2"] .scene,body[data-kit="2"] .scene.t-light{background:var(--paper);color:var(--ink);--hl:var(--hue)}
+body[data-kit="2"] .scene.t-dark{background:var(--ink);color:var(--paper);--hl:var(--hue)}
+body[data-kit="2"] .scene.t-brand{background:var(--hue);color:var(--ink);--hl:var(--ink)}
+/* the logo is only shown where its name is spoken: that scene turns to paper so the real logo reads */
+body[data-kit="2"] .scene:has(.k-logo-mid){background:var(--paper);color:var(--ink);--hl:var(--hue)}
+/* the spoken line is the hero: heavy, big, one chunk at a time, with room for the letters that go under the line */
+body[data-kit="2"] .k-cap{font-family:Alexandria,Tajawal,sans-serif;font-weight:900;font-size:150px;line-height:1.55;top:1170px;height:580px}
+body[data-kit="2"] .scene.hook .k-cap{font-size:190px;line-height:1.5;top:900px;height:800px}
+body[data-kit="2"] .scene.end .k-cap{font-size:104px;top:1200px}
+body[data-kit="2"] .k-w.hl,body[data-kit="2"].lowc .t-brand .k-w.hl,body[data-kit="2"].lowb .t-light .k-w.hl{background:var(--hue);color:var(--ink);padding:0 .22em .08em;border-radius:.16em;transform:rotate(-3deg);animation-name:k2-tag;animation-duration:.42s}
+body[data-kit="2"] .t-brand .k-w.hl,body[data-kit="2"].lowc .t-brand .k-w.hl{background:var(--ink);color:var(--paper)}
+body[data-kit="2"] .scene:has(.k-logo-mid) .k-w.hl{background:var(--hue);color:var(--ink)}
+@keyframes k2-tag{0%{opacity:0;transform:rotate(-3deg) scale(.55)}60%{opacity:1;transform:rotate(-3deg) scale(1.07)}100%{opacity:1;transform:rotate(-3deg) scale(1)}}
+/* flat components: one object per scene, no gloss */
+body[data-kit="2"] .k-card,body[data-kit="2"] .k-list li{background:var(--ink);color:var(--paper);border-radius:44px;box-shadow:0 34px 70px rgba(0,0,0,.2)}
+body[data-kit="2"] .t-dark .k-card,body[data-kit="2"] .t-dark .k-list li{background:var(--paper);color:var(--ink);box-shadow:none}
+body[data-kit="2"] .k-card>b,body[data-kit="2"] .k-row b{font-weight:900;line-height:1.5}
+body[data-kit="2"] .k-card>small,body[data-kit="2"] .k-row small{line-height:1.5;opacity:.7}
+body[data-kit="2"] .k-row em{color:var(--hue)}
+body[data-kit="2"] .k-ico,body[data-kit="2"] .t-brand .k-ico:not([style*="--c"]){background:var(--hue);color:var(--ink);box-shadow:none;text-shadow:none}
+body[data-kit="2"] .t-brand .k-ico,body[data-kit="2"] .t-brand .k-ico:not([style*="--c"]){background:var(--ink);color:var(--paper)}
+body[data-kit="2"] .k-stat b,body[data-kit="2"] .k-stat i{color:var(--hl);letter-spacing:0}
+body[data-kit="2"] .k-stat small{line-height:1.5}
+body[data-kit="2"] .k-tag,body[data-kit="2"] .k-cta{background:var(--hue);color:var(--ink);box-shadow:none}
+body[data-kit="2"] .t-brand .k-tag,body[data-kit="2"] .t-brand .k-cta{background:var(--ink);color:var(--paper)}
+/* cuts: a diagonal slice instead of the circle */
+body[data-kit="2"] .scene[data-tr=circle]{animation-name:ce-scene,k2-slice}
+body[data-kit="2"] .scene.ce-last[data-tr=circle]{animation-name:ce-last,k2-slice}
+@keyframes k2-slice{from{clip-path:polygon(100% 0,100% 0,100% 100%,140% 100%)}to{clip-path:polygon(-40% 0,100% 0,100% 100%,0% 100%)}}
