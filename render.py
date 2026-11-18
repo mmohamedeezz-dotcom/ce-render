@@ -410,6 +410,36 @@ def watch_review():
                 print(f'watch review [{model}] failed:', msg)
         if rep is None: return
         rep['model'] = used
+        # second pass on the clean voice alone: word by word, how it was said against how a Cairo native says it
+        vo = f'{out}/_vo.wav'
+        if os.path.exists(vo):
+            try:
+                ff('-i', vo, '-ac', '1', '-ar', '16000', '-b:a', '48k', f'{out}/_vo16.mp3')
+                aud = base64.b64encode(open(f'{out}/_vo16.mp3', 'rb').read()).decode()
+                ask2 = ('This is a voice-over recording in Egyptian colloquial Arabic (Cairo). The script it should say is: ' + script + ' . '
+                        'Listen carefully and go through the script word by word, in order. For every word write how it was ACTUALLY pronounced in the recording with full tashkeel, and how a native Cairo speaker would say that word in this sentence with full tashkeel. '
+                        'Mark ok false only when the recording clearly differs: a wrong vowel, a missing shadda, a swallowed or wrong letter, a wrong stress that changes the word, a formal (fusha) reading of a colloquial word, or a word skipped or replaced. Do not guess from the script: judge the sound. '
+                        'Return only JSON: {"words": [{"w": "the script word", "heard": "", "native": "", "ok": true}]}')
+                body2 = json.dumps({'contents': [{'parts': [{'inline_data': {'mime_type': 'audio/mp3', 'data': aud}}, {'text': ask2}]}], 'generationConfig': {'responseMimeType': 'application/json', 'temperature': 0}}).encode()
+                for model in ('gemini-3.8-flash', 'gemini-3.6-flash'):
+                    try:
+                        req = urllib.request.Request(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}', data=body2, headers={'Content-Type': 'application/json'})
+                        r = json.loads(urllib.request.urlopen(req, timeout=180).read())
+                        t = ''.join(p.get('text', '') for p in r['candidates'][0]['content']['parts'])
+                        ws = json.loads(t[t.index('{'):t.rindex('}') + 1]).get('words', [])
+                        bad = [x for x in ws if x.get('ok') is False and x.get('w')]
+                        rep.setdefault('voice', {})['heard_check'] = {'model': model, 'words': len(ws), 'wrong': len(bad)}
+                        if bad:
+                            rep['voice']['wrong_words'] = (rep['voice'].get('wrong_words') or []) + [{'said': x.get('heard', ''), 'should': x.get('native', ''), 'word': x['w']} for x in bad]
+                            rep['ok'] = False
+                            rep['fixes'] = ['الكلمة «%s» اتنطقت «%s» والصح «%s»: اكتبها في data-vo بالتشكيل الصح ده عشان تتنطق مظبوط' % (x['w'], x.get('heard', ''), x.get('native', '')) for x in bad] + (rep.get('fixes') or [])
+                        print('HEARD CHECK', model, len(ws), 'words,', len(bad), 'wrong')
+                        break
+                    except Exception as e:
+                        msg = e.read().decode('utf8', 'replace')[:200] if hasattr(e, 'read') else str(e)[:200]
+                        print(f'heard check [{model}] failed:', msg)
+            except Exception as e:
+                print('heard check stopped:', str(e)[:200])
         json.dump(rep, open(f'{out}/{code}_review.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         print('WATCH REVIEW', used, 'ok' if rep.get('ok') else 'NOT OK', rep.get('score'))
     except Exception as e:
