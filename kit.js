@@ -15,7 +15,7 @@
 
   // caption lines: 2-3 words each, sizes balanced, never a lonely word at the end
   function split(w, hook) {
-    var dr = isDraw(), maxW = dr ? 4 : hook ? 2 : 3, maxC = dr ? 24 : hook ? 12 : 17, n = w.length, out = [];
+    var dr = isDraw(), k2 = document.body.dataset.kit === '2', maxW = dr ? 4 : (hook || k2) ? 2 : 3, maxC = dr ? 24 : k2 ? (hook ? 9 : 11) : hook ? 12 : 17, n = w.length, out = []; // kit 2: one or two big words at a time follow the voice
     var len = function (t) { return t.replace(/[*\u064B-\u0652]/g, '').length; };
     for (var k = Math.ceil(n / maxW); k <= n; k++) {
       out = []; var base = Math.floor(n / k), extra = n % k, p = 0, ok = true;
