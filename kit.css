@@ -170,3 +170,10 @@ body{--brand:#1D4ED8;--accent:#FFB703;--paper:#F5F2EC;--ink:#14161B;--hl:var(--b
 @keyframes k-cy{from{background-position-y:0%}to{background-position-y:100%}}
 .draw .scene .k-bg.k-clip{animation-name:k-ken2}
 @keyframes k-ken2{from{transform:scale(1.04)}to{transform:scale(1)}}
+
+/* one real background for the whole reel (set by the renderer from <body data-bg>): scenes go transparent over it */
+body.has-bg{position:relative;background:#0B0C10}
+body.has-bg::before{content:'';position:absolute;inset:-5%;background-image:linear-gradient(180deg,rgba(8,10,14,.66),rgba(8,10,14,.5) 45%,rgba(8,10,14,.8)),var(--bgimg);background-size:cover;background-position:center;animation:k-bgmove 60s linear 0s both}
+body.has-bg .scene,body.has-bg .scene.t-dark,body.has-bg .scene.t-brand,body.has-bg .scene.t-light{background:transparent;color:#fff;--hl:var(--hl-dark,var(--accent))}
+body.has-bg .scene::before,body.has-bg .scene::after{display:none}
+@keyframes k-bgmove{from{transform:scale(1)}to{transform:scale(1.14)}}
