@@ -71,9 +71,12 @@
       if (s.dataset.img && !s.querySelector('.k-bg')) { var bg = document.createElement('div'); bg.className = 'k-bg'; s.insertBefore(bg, s.firstChild); s.classList.remove('t-light', 't-brand', 't-dark'); s.classList.add('t-photo'); }
       if (!/\bt-(light|brand|dark|photo)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
       if (i && !s.dataset.tr) s.dataset.tr = isDraw() ? 'dip' : TR[(i - 1) % 3];
-      if (brand && !s.querySelector('.k-logo')) { var l = document.createElement('div'); l.className = 'k-logo'; l.textContent = brand; s.insertBefore(l, s.firstChild); }
-      var lg = document.body.dataset.logo, kl = s.querySelector('.k-logo'); // the client's real logo instead of the typed name
-      if (lg && kl && !kl.querySelector('img')) { kl.textContent = ''; kl.classList.add('k-logo-img'); if ((document.body.dataset.logoBg || 'light') === 'light') kl.classList.add('k-plate'); var im = document.createElement('img'); im.src = lg; im.alt = brand; kl.appendChild(im); }
+      // no logo and no typed brand name on screen, except in a scene whose voice-over says the brand's name: there the logo sits in the middle, with nothing behind it
+      var kl = s.querySelector('.k-logo'), lg = document.body.dataset.logo, vo = (s.dataset.vo || '').toLowerCase();
+      var names = ((document.body.dataset.brandNames || '') + '|' + brand).toLowerCase().split('|').map(function (x) { return x.trim(); }).filter(function (x) { return x.length > 2; });
+      var said = s.hasAttribute('data-logo-show') || names.some(function (n) { return vo.indexOf(n) > -1; });
+      if (kl) kl.remove();
+      if (said && (lg || brand)) { var l = document.createElement('div'); l.className = 'k-logo k-logo-mid'; if (lg) { l.classList.add('k-logo-img'); var im = document.createElement('img'); im.src = lg; im.alt = brand; l.appendChild(im); } else l.textContent = brand; s.insertBefore(l, s.firstChild); }
       var w = toks(s);
       // caption: every spoken word on screen, in short chunks, each word landing on its own time
       if (w.length && s.dataset.cap !== 'off' && !s.querySelector('.k-cap')) {
