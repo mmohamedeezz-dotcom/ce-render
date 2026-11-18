@@ -1,0 +1,32 @@
+{
+ "ok": false,
+ "score": 4,
+ "voice": {
+  "score": 7,
+  "dialect": "egyptian",
+  "wrong_words": [],
+  "delivery": "Energetic and lively, good pacing matching the fast social media style."
+ },
+ "background": {
+  "score": 4,
+  "notes": "Solid color backgrounds (black and orange/beige) with basic typography and minimal motion graphics, looks a bit plain and cheap."
+ },
+ "visual": [
+  {
+   "at": "00:03",
+   "problem": "Text lines are slightly disjointed and stacked awkwardly in word bubbles."
+  },
+  {
+   "at": "00:13",
+   "problem": "Text 'صفر جنيه' and 'صفر' overlap awkwardly with surrounding elements."
+  }
+ ],
+ "sync": "The text on screen highlights the key phrases well in sync with the voice-over.",
+ "sound": "Clear, punchy voice-over with upbeat background music and sound effects that fit the commercial tempo.",
+ "fixes": [
+  "Upgrade background motion graphics to be more engaging and professional than flat solid colors.",
+  "Fix text overlapping issues around seconds 3 and 13.",
+  "Refine layout and typography padding across all frames."
+ ],
+ "model": "gemini-3.5-flash-lite"
+}
