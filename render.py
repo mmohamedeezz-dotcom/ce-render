@@ -220,6 +220,7 @@ with sync_playwright() as p:
     STYLE = pg.evaluate("document.body.dataset.style || ''")
     # one real background for the whole reel: the brand's saved one (data-bg-url) or a new one from <body data-bg="english prompt">
     BG = pg.evaluate("document.body.dataset.bg || ''").strip(); BGU = pg.evaluate("document.body.dataset.bgUrl || ''").strip()
+    if pg.evaluate("document.body.dataset.kit || ''") == '2': BG = BGU = ''  # the flat look never takes a picture behind it
     if BG or BGU:
         import shutil
         bgf = None
