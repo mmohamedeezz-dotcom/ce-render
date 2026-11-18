@@ -192,3 +192,8 @@ body.has-bg .scene.ce-last,body.has-bg .scene.ce-last[data-tr]{animation-name:ce
 .k-logo.k-plate{top:0;left:0;right:0;padding:64px 0 120px;background:linear-gradient(180deg,var(--paper) 0%,color-mix(in srgb,var(--paper) 90%,transparent) 42%,transparent 100%)}
 .k-logo.k-plate img{height:104px}
 .scene.end .k-logo.k-plate{top:330px;padding:130px 0;background:radial-gradient(closest-side,var(--paper) 0%,color-mix(in srgb,var(--paper) 88%,transparent) 52%,transparent 100%)}
+/* the logo only shows while the brand's name is being said: centred, nothing behind it */
+.k-logo.k-logo-mid{top:330px}
+.k-logo.k-logo-mid img{height:190px}
+.scene.end .k-logo.k-logo-mid{top:430px}
+.scene.end .k-logo.k-logo-mid img{height:240px}
