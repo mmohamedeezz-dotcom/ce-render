@@ -239,3 +239,12 @@ body[data-kit="2"] .scene.ce-last[data-tr=side]{animation-name:ce-last,k2-whip}
 body[data-kit="2"] .scene[data-tr=up]{animation-name:ce-scene,k2-punch}
 body[data-kit="2"] .scene.ce-last[data-tr=up]{animation-name:ce-last,k2-punch}
 @keyframes k2-punch{from{clip-path:circle(0% at 50% 46%);transform:scale(.55)}to{clip-path:circle(125% at 50% 46%);transform:none}}
+body[data-kit="2"] .k-stat{line-height:1.5;gap:0 22px}
+body[data-kit="2"] .k-stat b{font-size:300px;line-height:1.35}
+body[data-kit="2"] .k-stat i{line-height:1.5}
+body[data-kit="2"] .k-stat small{margin-top:10px}
+body[data-kit="2"] .k-chat p{box-shadow:none;line-height:1.5}
+body[data-kit="2"] .k-chat .in{background:var(--ink);color:var(--paper)}
+body[data-kit="2"] .t-dark .k-chat .in{background:var(--paper);color:var(--ink)}
+body[data-kit="2"] .k-chat .out,body[data-kit="2"] .t-dark .k-chat .out{background:var(--hue);color:var(--ink)}
+body[data-kit="2"] .t-brand .k-chat .out{background:var(--paper);color:var(--ink)}
