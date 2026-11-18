@@ -70,6 +70,8 @@
     S.forEach(function (s, i) {
       if (s.dataset.img && !s.querySelector('.k-bg')) { var bg = document.createElement('div'); bg.className = 'k-bg'; s.insertBefore(bg, s.firstChild); s.classList.remove('t-light', 't-brand', 't-dark'); s.classList.add('t-photo'); }
       if (!/\bt-(light|brand|dark|photo)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
+      // flat look: never a black scene. A dark scene becomes paper, or the brand colour when the scene before it is paper
+      if (document.body.dataset.kit === '2' && s.classList.contains('t-dark')) { var pv = s.previousElementSibling; s.classList.remove('t-dark'); s.classList.add(pv && pv.classList && pv.classList.contains('t-light') ? 't-brand' : 't-light'); }
       if (i && !s.dataset.tr) s.dataset.tr = isDraw() ? 'dip' : TR[(i - 1) % 3];
       // no logo and no typed brand name on screen, except in a scene whose voice-over says the brand's name: there the logo sits in the middle, with nothing behind it
       var kl = s.querySelector('.k-logo'), lg = document.body.dataset.logo, vo = (s.dataset.vo || '').toLowerCase();
