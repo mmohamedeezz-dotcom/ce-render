@@ -200,7 +200,7 @@ body.has-bg .scene.ce-last,body.has-bg .scene.ce-last[data-tr]{animation-name:ce
 .scene.end .k-logo.k-logo-mid img{height:240px}
 
 /* ---------- kit 2 (body[data-kit="2"]): the words lead, three flat colours, the colour flip is the cut. No background picture. ---------- */
-body[data-kit="2"]{--paper:#F1EEE8;--ink:#111214;--hue:var(--accent);font-family:Alexandria,Tajawal,system-ui,sans-serif;background:var(--ink)}
+body[data-kit="2"]{--paper:#F1EEE8;--ink:#111214;--hue:var(--accent);font-family:Alexandria,Tajawal,system-ui,sans-serif;background:var(--paper)}
 body[data-kit="2"] .scene::before,body[data-kit="2"] .scene::after{display:none}
 body[data-kit="2"] .scene,body[data-kit="2"] .scene.t-light{background:var(--paper);color:var(--ink);--hl:var(--hue)}
 body[data-kit="2"] .scene.t-dark{background:var(--ink);color:var(--paper);--hl:var(--hue)}
