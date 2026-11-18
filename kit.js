@@ -72,6 +72,8 @@
       if (!/\bt-(light|brand|dark|photo)\b/.test(s.className)) s.classList.add(i % 2 ? 't-brand' : 't-light');
       if (i && !s.dataset.tr) s.dataset.tr = isDraw() ? 'dip' : TR[(i - 1) % 3];
       if (brand && !s.querySelector('.k-logo')) { var l = document.createElement('div'); l.className = 'k-logo'; l.textContent = brand; s.insertBefore(l, s.firstChild); }
+      var lg = document.body.dataset.logo, kl = s.querySelector('.k-logo'); // the client's real logo instead of the typed name
+      if (lg && kl && !kl.querySelector('img')) { kl.textContent = ''; kl.classList.add('k-logo-img'); if ((document.body.dataset.logoBg || 'light') === 'light') kl.classList.add('k-plate'); var im = document.createElement('img'); im.src = lg; im.alt = brand; kl.appendChild(im); }
       var w = toks(s);
       // caption: every spoken word on screen, in short chunks, each word landing on its own time
       if (w.length && s.dataset.cap !== 'off' && !s.querySelector('.k-cap')) {
@@ -99,6 +101,7 @@
     S.forEach(function (s, i) {
       var m = T[i]; if (!m) return; var last = i === S.length - 1, dv = m.d + (last ? 0 : OV);
       if (i === 0) dv += 0.06; // the very first frame must already show the picture
+      if (document.body.classList.contains('has-bg')) dv = m.d + (i === 0 ? 0.06 : 0); // see-through scenes over the reel background: the old one leaves when the next starts
       s.style.setProperty('--s', (i === 0 ? -0.06 : m.s) + 's'); s.style.setProperty('--d', m.d + 's'); s.style.setProperty('--dv', dv + 's');
       if (last) s.classList.add('ce-last');
       var at = function (k) { k = Math.max(0, Math.min(m.w.length - 1, parseInt(k, 10) || 0)); var v = m.w[k] || 0; return i === 0 && v < 0.25 ? -0.22 : v; };
