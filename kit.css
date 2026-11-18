@@ -248,3 +248,11 @@ body[data-kit="2"] .k-chat .in{background:var(--ink);color:var(--paper)}
 body[data-kit="2"] .t-dark .k-chat .in{background:var(--paper);color:var(--ink)}
 body[data-kit="2"] .k-chat .out,body[data-kit="2"] .t-dark .k-chat .out{background:var(--hue);color:var(--ink)}
 body[data-kit="2"] .t-brand .k-chat .out{background:var(--paper);color:var(--ink)}
+body[data-kit="2"] .k-list li::before,body[data-kit="2"] .k-list.no li::before{background:var(--hue);color:var(--ink);box-shadow:none}
+body[data-kit="2"] .k-logo.k-logo-mid{top:300px}
+body[data-kit="2"] .k-logo.k-logo-mid img{height:auto;width:auto;max-height:330px;max-width:800px}
+body[data-kit="2"] .scene.end .k-logo.k-logo-mid{top:300px}
+body[data-kit="2"] .scene.end .k-logo.k-logo-mid img{height:auto;width:auto;max-height:400px;max-width:860px}
+body[data-kit="2"] .scene.end .k-stage{top:760px;height:420px}
+body[data-kit="2"] .scene.end .k-cta{font-size:96px;padding:56px 110px;max-width:980px}
+body[data-kit="2"] .scene.end .k-cap{font-size:170px;line-height:1.5;top:1230px;height:520px}
