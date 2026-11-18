@@ -208,8 +208,8 @@ body[data-kit="2"] .scene.t-brand{background:var(--hue);color:var(--ink);--hl:va
 /* the logo is only shown where its name is spoken: that scene turns to paper so the real logo reads */
 body[data-kit="2"] .scene:has(.k-logo-mid){background:var(--paper);color:var(--ink);--hl:var(--hue)}
 /* the spoken line is the hero: heavy, big, one chunk at a time, with room for the letters that go under the line */
-body[data-kit="2"] .k-cap{font-family:Alexandria,Tajawal,sans-serif;font-weight:900;font-size:150px;line-height:1.55;top:1170px;height:580px}
-body[data-kit="2"] .scene.hook .k-cap{font-size:190px;line-height:1.5;top:900px;height:800px}
+body[data-kit="2"] .k-cap{font-family:Alexandria,Tajawal,sans-serif;font-weight:900;font-size:200px;line-height:1.5;top:1200px;height:520px}
+body[data-kit="2"] .scene.hook .k-cap{font-size:250px;line-height:1.45;top:960px;height:760px}
 body[data-kit="2"] .scene.end .k-cap{font-size:104px;top:1200px}
 body[data-kit="2"] .k-w.hl,body[data-kit="2"].lowc .t-brand .k-w.hl,body[data-kit="2"].lowb .t-light .k-w.hl{background:var(--hue);color:var(--ink);padding:0 .22em .08em;border-radius:.16em;transform:rotate(-3deg);animation-name:k2-tag;animation-duration:.42s}
 body[data-kit="2"] .t-brand .k-w.hl,body[data-kit="2"].lowc .t-brand .k-w.hl{background:var(--ink);color:var(--paper)}
@@ -227,7 +227,15 @@ body[data-kit="2"] .k-stat b,body[data-kit="2"] .k-stat i{color:var(--hl);letter
 body[data-kit="2"] .k-stat small{line-height:1.5}
 body[data-kit="2"] .k-tag,body[data-kit="2"] .k-cta{background:var(--hue);color:var(--ink);box-shadow:none}
 body[data-kit="2"] .t-brand .k-tag,body[data-kit="2"] .t-brand .k-cta{background:var(--ink);color:var(--paper)}
-/* cuts: a diagonal slice instead of the circle */
+/* cuts: a diagonal slice, a whip pan with motion blur, a punch through the middle */
 body[data-kit="2"] .scene[data-tr=circle]{animation-name:ce-scene,k2-slice}
 body[data-kit="2"] .scene.ce-last[data-tr=circle]{animation-name:ce-last,k2-slice}
 @keyframes k2-slice{from{clip-path:polygon(100% 0,100% 0,100% 100%,140% 100%)}to{clip-path:polygon(-40% 0,100% 0,100% 100%,0% 100%)}}
+body[data-kit="2"] .k-stage{top:360px;height:800px}
+body[data-kit="2"] .scene.hook .k-stage{top:300px;height:600px}
+body[data-kit="2"] .scene[data-tr=side]{animation-name:ce-scene,k2-whip}
+body[data-kit="2"] .scene.ce-last[data-tr=side]{animation-name:ce-last,k2-whip}
+@keyframes k2-whip{0%{transform:translateX(100%);filter:blur(44px)}70%{filter:blur(30px)}100%{transform:none;filter:blur(0)}}
+body[data-kit="2"] .scene[data-tr=up]{animation-name:ce-scene,k2-punch}
+body[data-kit="2"] .scene.ce-last[data-tr=up]{animation-name:ce-last,k2-punch}
+@keyframes k2-punch{from{clip-path:circle(0% at 50% 46%);transform:scale(.55)}to{clip-path:circle(125% at 50% 46%);transform:none}}
