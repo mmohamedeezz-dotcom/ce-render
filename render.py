@@ -218,6 +218,17 @@ with sync_playwright() as p:
         pg.screenshot(path=f'{out}/{code}.png'); b.close(); print('png done'); sys.exit(0)
 
     STYLE = pg.evaluate("document.body.dataset.style || ''")
+    # one real background for the whole reel: <body data-bg="english prompt"> -> a single generated picture behind every scene
+    BG = pg.evaluate("document.body.dataset.bg || ''")
+    if BG.strip():
+        os.environ['CE_PRO'] = '1'
+        try: bgf = ce_img.fetch_image(BG.strip() + ', vertical composition, soft focus, calm, plenty of empty space, no people facing camera, no text, no letters, no logos, no watermark', 1080, 1920, 7)
+        except Exception as e: bgf = None; print('bg image error:', str(e)[:160])
+        os.environ.pop('CE_PRO', None)
+        if bgf:
+            pg.evaluate("d => { document.body.style.setProperty('--bgimg', 'url(\"' + d + '\")'); document.body.classList.add('has-bg'); document.querySelectorAll('.scene').forEach(s => { s.classList.remove('t-light', 't-brand'); s.classList.add('t-dark'); }); }", ce_img.data_uri(bgf))
+            print('reel background: ok')
+        else: print('reel background: failed, plain scenes kept')
     scenes = pg.evaluate("[...document.querySelectorAll('.scene')].map(s => ({vo: s.dataset.vo || '', sfx: s.dataset.sfx || ''}))")
     if not scenes:
         print('no .scene sections'); sys.exit(1)
@@ -359,6 +370,43 @@ def qa_report():
     print('QA', 'PASS' if rep['pass'] else 'FAIL'); [print(' ', 'ok ' if x['ok'] else 'BAD', x['t']) for x in L]
 
 qa_report()
+
+# ---------- a reviewer that watches and listens: the finished mp4 goes to Gemini with its sound ----------
+def watch_review():
+    key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not (key and reel and os.path.exists(final)): return
+    try:
+        small = f'{out}/_rev.mp4'
+        ff('-i', final, '-vf', 'scale=540:-2', '-r', '24', '-c:v', 'libx264', '-crf', '30', '-c:a', 'aac', '-b:a', '96k', small)
+        vid = base64.b64encode(open(small, 'rb').read()).decode()
+        script = ' | '.join(s.get('vo', '').replace('*', '') for s in scenes)
+        ask = ('You are a strict senior video editor and voice director reviewing a short vertical social media ad for an Egyptian audience. Watch the whole video AND listen to its audio. '
+               'The intended voice-over script (Egyptian Arabic) is: ' + script + ' . '
+               'Judge like a picky client: 1) VOICE: is it natural Egyptian colloquial Arabic or stiff formal Arabic (fusha)? list every word that is mispronounced or sounds wrong, is the delivery lively or flat, is the pace right. '
+               '2) BACKGROUND: is the background behind the motion graphics rich and professional, or flat, empty or ugly. 3) VISUALS: any moment where text is unreadable, cut, overlapping, too small, or the screen is mostly empty. '
+               '4) SYNC: do the on-screen words match what is said at that moment. 5) SOUND: music and sound effects level against the voice. '
+               'Answer in Egyptian Arabic inside this exact JSON: {"ok": true or false, "score": 0-10, "voice": {"score": 0-10, "dialect": "egyptian|fusha|mixed", "wrong_words": [{"said": "", "should": "", "at": "seconds"}], "delivery": ""}, '
+               '"background": {"score": 0-10, "notes": ""}, "visual": [{"at": "seconds", "problem": ""}], "sync": "", "sound": "", "fixes": ["the concrete changes the editor must make, most important first"]}. '
+               'ok is true only when you would publish it as is (score 8 or more and no wrong words).')
+        body = json.dumps({'contents': [{'parts': [{'inline_data': {'mime_type': 'video/mp4', 'data': vid}}, {'text': ask}]}], 'generationConfig': {'responseMimeType': 'application/json', 'temperature': 0.2}}).encode()
+        rep, used = None, ''
+        for model in ('gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'):
+            try:
+                req = urllib.request.Request(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}', data=body, headers={'Content-Type': 'application/json'})
+                r = json.loads(urllib.request.urlopen(req, timeout=240).read())
+                t = ''.join(p.get('text', '') for p in r['candidates'][0]['content']['parts'])
+                rep = json.loads(t[t.index('{'):t.rindex('}') + 1]); used = model; break
+            except Exception as e:
+                msg = e.read().decode('utf8', 'replace')[:200] if hasattr(e, 'read') else str(e)[:200]
+                print(f'watch review [{model}] failed:', msg)
+        if rep is None: return
+        rep['model'] = used
+        json.dump(rep, open(f'{out}/{code}_review.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        print('WATCH REVIEW', used, 'ok' if rep.get('ok') else 'NOT OK', rep.get('score'))
+    except Exception as e:
+        print('watch review stopped:', str(e)[:200])
+
+watch_review()
 for f in os.listdir(out):
     if f.startswith('_'): os.remove(os.path.join(out, f))
 print('mp4 done', final, 'voice' if real else 'NO VOICE (silent)')
