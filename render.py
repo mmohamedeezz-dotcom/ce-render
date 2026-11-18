@@ -392,7 +392,7 @@ def watch_review():
         ask = ('You are a strict senior video editor and voice director reviewing a short vertical social media ad for an Egyptian audience. Watch the whole video AND listen to its audio. '
                'The intended voice-over script (Egyptian Arabic) is: ' + script + ' . '
                'Judge like a picky client: 1) VOICE: is it natural Egyptian colloquial Arabic or stiff formal Arabic (fusha)? list every word that is mispronounced or sounds wrong, is the delivery lively or flat, is the pace right. '
-               '2) BACKGROUND: is the background behind the motion graphics rich and professional, or flat, empty or ugly. 3) VISUALS: any moment where text is unreadable, cut, overlapping, too small, or the screen is mostly empty. '
+               '2) BACKGROUND: does the background fit the style: a flat solid colour scene (paper, black or one brand colour) is a deliberate style here and is correct, so never ask to replace it with a picture or a gradient; only flag a background that hurts the contrast of the text. 3) VISUALS: any moment where text is unreadable, cut, overlapping, too small, or the screen is mostly empty. '
                '4) SYNC: do the on-screen words match what is said at that moment. 5) SOUND: music and sound effects level against the voice. '
                'Answer in Egyptian Arabic inside this exact JSON: {"ok": true or false, "score": 0-10, "voice": {"score": 0-10, "dialect": "egyptian|fusha|mixed", "wrong_words": [{"said": "", "should": "", "at": "seconds"}], "delivery": ""}, '
                '"background": {"score": 0-10, "notes": ""}, "visual": [{"at": "seconds", "problem": ""}], "sync": "", "sound": "", "fixes": ["the concrete changes the editor must make, most important first"]}. '
