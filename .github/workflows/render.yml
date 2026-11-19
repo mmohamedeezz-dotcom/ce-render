@@ -46,6 +46,42 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CE_PRO: ${{ github.event.client_payload.spec.kind == 'post' && '1' || '' }}
         run: python render.py spec.json out
+      - name: Agent finish (designs)
+        if: github.event.client_payload.spec.kind == 'post'
+        continue-on-error: true
+        timeout-minutes: 25
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CE_PRO: '1'
+        run: |
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "no ANTHROPIC_API_KEY, agent skipped"; exit 0; }
+          npm i -g @anthropic-ai/claude-code >/dev/null 2>&1
+          CODE=$(python -c "import json;s=json.load(open('spec.json',encoding='utf-8'));print(''.join(c for c in str(s.get('code') or 'asset') if c.isalnum() or c in '-_') or 'asset')")
+          python -c "import json;open('design.html','w',encoding='utf-8').write(json.load(open('spec.json',encoding='utf-8'))['html'])"
+          cp "out/$CODE.png" "out/${CODE}_before.png"
+          # the agent's own words never go to the public log: only cost and turns are printed
+          timeout 1200 claude -p "Finish the design. Follow AGENT_DESIGN.md exactly. The design code is $CODE, so the render is out/$CODE.png." \
+            --append-system-prompt "$(cat AGENT_DESIGN.md)" \
+            --model claude-sonnet-5-5 --permission-mode dontAsk \
+            --allowedTools "Read" "Edit(design.html)" "Write(design.html)" "Bash(python look.py)" \
+            --max-budget-usd 2 --output-format json > agent.json 2> agent.err || true
+          python - <<'PY'
+          import json, os
+          code = os.environ.get('CODE') or ''
+          try:
+              r = json.load(open('agent.json', encoding='utf-8'))
+          except Exception:
+              r = {}
+          print('agent:', r.get('subtype'), 'turns', r.get('num_turns'), 'cost', r.get('total_cost_usd'))
+          PY
+          python -c "import json;r=json.load(open('agent.json',encoding='utf-8'));open('out/${CODE}_agent.txt','w',encoding='utf-8').write(str(r.get('result') or '')[:3000])" || true
+          [ -s "out/$CODE.png" ] || cp "out/${CODE}_before.png" "out/$CODE.png"
       - name: Publish
         id: pub
         run: |
