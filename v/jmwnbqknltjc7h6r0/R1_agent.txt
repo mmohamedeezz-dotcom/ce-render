@@ -1,0 +1,4 @@
+- Scene 7: removed the inline orange (`--c:#FE7D49`) from the cancel icon, so the scene stays within paper, ink and the brand colour.
+- Scene 8: changed the card text from "اكتب في الكومنتات" to "ابعتلي على الواتساب", so it matches the WhatsApp call to action in the last scene.
+
+I couldn't re-run `reel_look.py` after these edits because Bash was denied. I haven't checked the layout or looked at a new preview. The one run I did, before the edits, printed no overlap, overflow or off_frame entries.
