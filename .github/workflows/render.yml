@@ -35,6 +35,45 @@ jobs:
           path: cache
           key: ce-cache-${{ github.run_id }}
           restore-keys: ce-cache-
+      - name: Agent pre-pass (reels)
+        if: github.event.client_payload.spec.kind == 'reel'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "no ANTHROPIC_API_KEY, agent skipped"; exit 0; }
+          npm i -g @anthropic-ai/claude-code >/dev/null 2>&1
+          CODE=$(python -c "import json;s=json.load(open('spec.json',encoding='utf-8'));print(''.join(c for c in str(s.get('code') or 'asset') if c.isalnum() or c in '-_') or 'asset')")
+          mkdir -p out
+          python -c "import json;open('design.html','w',encoding='utf-8').write(json.load(open('spec.json',encoding='utf-8'))['html'])"
+          python reel_look.py > /dev/null 2>&1 && cp preview/sheet.jpg "out/${CODE}_sheet_before.jpg" || true
+          # the agent's own words never go to the public log: only cost and turns are printed
+          timeout 1000 claude -p "Finish the reel. Follow AGENT_REEL.md exactly." \
+            --append-system-prompt "$(cat AGENT_REEL.md)" \
+            --model claude-sonnet-5-5 --permission-mode dontAsk \
+            --allowedTools "Read" "Edit(design.html)" "Bash(python reel_look.py)" \
+            --max-budget-usd 3 --output-format json > agent.json 2> agent.err || true
+          python - <<'PY'
+          import json, re
+          try:
+              r = json.load(open('agent.json', encoding='utf-8'))
+          except Exception:
+              r = {}
+          print('agent:', r.get('subtype'), 'turns', r.get('num_turns'), 'cost', r.get('total_cost_usd'))
+          spec = json.load(open('spec.json', encoding='utf-8'))
+          new = open('design.html', encoding='utf-8').read()
+          count = lambda h: (len(re.findall(r'<section[^>]*class="[^"]*\bscene\b', h)), len(re.findall(r'data-vo=', h)))
+          if count(new) == count(spec['html']) and count(new)[0] > 0:
+              spec['html'] = new
+              json.dump(spec, open('spec.json', 'w', encoding='utf-8'), ensure_ascii=False)
+              print('agent changes kept')
+          else:
+              print('agent changed the scene count, original kept')
+          code = ''.join(c for c in str(spec.get('code') or 'asset') if c.isalnum() or c in '-_') or 'asset'
+          open(f'out/{code}_agent.txt', 'w', encoding='utf-8').write(str(r.get('result') or '')[:3000])
+          PY
+          python reel_look.py > /dev/null 2>&1 && cp preview/sheet.jpg "out/${CODE}_sheet_after.jpg" || true
       - name: Render
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
