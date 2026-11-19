@@ -1,0 +1,7 @@
+I made no changes to `design.html`; the render already passes every checklist item.
+
+- **Text and logo:** Nothing overlaps, and all text and the logo sit well clear of the man's head, hands and the door.
+- **Hierarchy and contrast:** The orange question is clearly the biggest line, and the white lines on the dark gradient have good contrast.
+- **Layout:** Margins are 60 px or more, and the man is on the left with the text on the right.
+- **Arabic and wording:** There is no letter-spacing, and the copy is already everyday Egyptian Arabic.
+- **Photo:** It has no stray letters, and the hands and face look fine.
