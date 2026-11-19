@@ -1,0 +1,27 @@
+{
+ "ok": false,
+ "score": 6,
+ "voice": {
+  "score": 7,
+  "dialect": "egyptian",
+  "wrong_words": [],
+  "delivery": "Energetic and lively, good Egyptian accent."
+ },
+ "background": {
+  "score": 9,
+  "notes": "Solid vibrant colors, good contrast and brand feel."
+ },
+ "visual": [
+  {
+   "at": "00:03",
+   "problem": "Text block 'سامعينك بالعافية' overlaps slightly awkwardly with 'ثانية بس'."
+  }
+ ],
+ "sync": "The timing of words appearing on screen matches the voiceover narration well.",
+ "sound": "Clear voice-over with appropriate pacing and no distracting sound effects.",
+ "fixes": [
+  "Adjust visual layout at 00:03 to avoid overlapping text.",
+  "Ensure sound effect levels are consistent throughout the ad."
+ ],
+ "model": "gemini-3.5-flash-lite"
+}
