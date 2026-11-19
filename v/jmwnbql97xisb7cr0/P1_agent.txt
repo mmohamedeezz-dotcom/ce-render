@@ -1,0 +1,1 @@
+I moved the text block up 14 px (top 168 → 154) so the subline clears the man's head. I rendered once and checked the new `out/P1.png`. I changed nothing else, because the rest of the checklist already passed.
