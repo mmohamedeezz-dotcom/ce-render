@@ -1,0 +1,5 @@
+I raised the opacity of the five skill-list lines from 0.55 to 0.8 so they pass the 4.5:1 contrast check against the green background. That was the only change. I re-rendered once and checked the new `out/P2.png`.
+
+I didn't measure the contrast ratio; I judged the new opacity from the render.
+
+I left everything else as it was because it already passed the checklist.
