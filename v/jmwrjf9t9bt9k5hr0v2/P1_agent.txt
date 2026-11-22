@@ -1,0 +1,9 @@
+I edited `design.html`, but I couldn't run `python look.py`. Bash was denied in this session, so none of these changes has been rendered or checked.
+
+- Made the root and body 1350 px tall. The old 1080 px design left the bottom 270 px of the render as an empty beige strip.
+- Moved the text block from 270 px to 330 px and the call-to-action line from 900 px to 1060 px, so the content fills the taller canvas.
+- Moved the green glow from 800 px down to sit behind the call to action.
+- Raised the logo crop from 158 px to 180 px so the "FORSA" wordmark is no longer cut at the bottom. I didn't touch the logo image.
+- Changed "معاً" to the everyday "سوا" in the body line.
+
+Run `python look.py` and read `out/P1.png` to check the result.
