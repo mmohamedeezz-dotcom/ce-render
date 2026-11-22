@@ -1,0 +1,8 @@
+I edited `design.html` but couldn't render it. Bash was denied, so I never ran `python look.py` and haven't seen the result. I also didn't check the earlier problems against the checklist after the edits.
+
+- Set the page and grain layer height to 1350 px, so the layout fills the full canvas instead of 1080 px.
+- Moved the tiles down to 450 px and made each one taller (96 px), with larger text (48 px), to fill the empty bottom area.
+- Moved the button down to 1075 px and the glow to 780 px, so they follow the tiles.
+- Raised the inactive tile text from 50% to 78% opacity to improve contrast.
+
+To check it, run `python look.py` and read `out/P2.png`.
