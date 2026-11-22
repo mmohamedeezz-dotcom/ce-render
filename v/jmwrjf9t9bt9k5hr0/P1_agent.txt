@@ -1,0 +1,8 @@
+I edited `design.html` but couldn't run `python look.py`, because Bash was denied. I haven't seen a new render, so none of this is checked.
+
+- **Headline:** I widened it from 760 to 960 px, so "بعتّ كام سي في" should now sit on one line. That removes the orphan "في" line.
+- **Headline position:** I moved it down to top 140 px and set line-height to 1.3, which should clear the logo and the "؟" graphic.
+- **Headline size:** I reduced it from 104 to 96 px.
+- **Punch line:** I reduced "فرصة بتشوفك شريك مش موظف" from 68 to 58 px so it should stay inside the 60 px side margins.
+
+To check it, run `python look.py` and read `out/P1.png`. Or allow Bash and I'll render and adjust.
